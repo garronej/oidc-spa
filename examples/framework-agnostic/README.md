@@ -56,6 +56,8 @@ adapter returns only `getOidc()`. The rest is ordinary Vue and Vue Router code:
     auto-logout warnings. `src/main.ts` awaits it before installing
     the router and mounting the app.
 -   `useOidc()` exposes readonly refs for the OIDC client, user, and auto-logout state.
+    It asserts that initialization has finished, so the client ref is non-optional.
+    Read the user ref when logged in; it also asserts that a user is available.
     Core login state is fixed for the lifetime of the page; user refreshes and warning
     updates are reactive. Subscriptions belong to the app.
 -   `enforceLogin(targetHref)` is used by a global navigation guard for routes with

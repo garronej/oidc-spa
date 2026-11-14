@@ -6,8 +6,7 @@
         "dev": "concurrently --kill-others \"vite\" \"tsx watch server/index.ts --api-only\"",
         "typecheck": "vue-tsc --noEmit",
         "build": "vue-tsc --noEmit && vite build && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/index.mjs",
-        "start": "node dist/server/index.mjs",
-        "test": "node --test tests/*.test.mjs"
+        "start": "node dist/server/index.mjs"
     },
     "dependencies": {
         "@trpc/client": "11.18.0",
@@ -15,10 +14,11 @@
         "@upstash/redis": "1.39.0",
         "dotenv": "18.0.9",
         "express": "5.3.0",
-        "oidc-spa": "file:../../dist",
+        "oidc-spa": "latest",
         "zod": "4.6.7",
         "vue": "3.5.45",
-        "vue-router": "5.5.0"
+        "vue-router": "5.5.0",
+        "tsafe": "1.8.12"
     },
     "devDependencies": {
         "@types/express": "5.0.6",

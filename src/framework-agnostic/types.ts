@@ -4,12 +4,13 @@ import type {
     OidcProviderMetadata,
     OidcUserInfo,
     Oidc,
-    OidcTokens
+    OidcTokens,
+    AutoLogoutState
 } from "../core";
 import type { MaybeAsync } from "../tools/MaybeAsync";
 import { assert, type Equals } from "../tools/tsafe/assert";
 
-export type { IdTokenClaims, OidcProviderMetadata, OidcUserInfo, OidcTokens, Oidc };
+export type { IdTokenClaims, OidcProviderMetadata, OidcUserInfo, OidcTokens, Oidc, AutoLogoutState };
 
 export type GetOidc<User> = {
     (params?: { assert?: undefined }): Promise<Oidc<User>>;

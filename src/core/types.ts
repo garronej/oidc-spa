@@ -113,21 +113,9 @@ export declare namespace Oidc {
              */
             returnToUrl?: string;
         }) => Promise<never>;
-        subscribeToAutoLogoutState: (
-            next: (
-                autoLogoutState:
-                    | {
-                          shouldDisplayWarning: true;
-                          secondsLeftBeforeAutoLogout: number;
-                          /** Resets the auto-logout countdown as if user activity was detected. */
-                          resetAutoLogoutCountdown: () => void;
-                      }
-                    | {
-                          shouldDisplayWarning: false;
-                          secondsLeftBeforeAutoLogout?: never;
-                      }
-            ) => void
-        ) => { unsubscribeFromAutoLogoutState: () => void };
+        subscribeToAutoLogoutState: (next: (autoLogoutState: AutoLogoutState) => void) => {
+            unsubscribeFromAutoLogoutState: () => void;
+        };
         /**
          * Describes the authorization round trip that brought the user back to the application.
          *
@@ -255,6 +243,18 @@ export declare namespace Oidc {
         disableDPoP?: boolean;
     };
 }
+
+export type AutoLogoutState =
+    | {
+          shouldDisplayWarning: true;
+          secondsLeftBeforeAutoLogout: number;
+          /** Resets the auto-logout countdown as if user activity was detected. */
+          resetAutoLogoutCountdown: () => void;
+      }
+    | {
+          shouldDisplayWarning: false;
+          secondsLeftBeforeAutoLogout?: never;
+      };
 
 export type ParamsOfCreateOidc<User> = {
     createUser?: CreateUser<User>;

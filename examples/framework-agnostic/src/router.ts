@@ -30,6 +30,7 @@ export const router = createRouter({
 
 router.beforeEach(async to => {
     if (to.meta.requiresAuth) {
-        await enforceLogin(router.resolve(to).href);
+        const toHref = new URL(router.resolve(to).href, location.origin).href;
+        await enforceLogin(toHref);
     }
 });

@@ -2,8 +2,9 @@ import { oidcSpa } from "oidc-spa/framework-agnostic";
 import { z } from "zod";
 import { decodeJwt } from "oidc-spa/decode-jwt";
 import avatarFallbackSvgUrl from "./assets/userPictureFallback.svg";
-import { shallowRef, shallowReadonly } from "vue";
-import type { Oidc } from "oidc-spa/framework-agnostic";
+import { computed, shallowRef } from "vue";
+import type { Oidc, AutoLogoutState } from "oidc-spa/framework-agnostic";
+import { assert } from "tsafe";
 
 // App-specific user model exposed by `useOidc()`.
 // Shape it around the information the UI needs to render.
@@ -109,52 +110,60 @@ export const { getOidc } = oidcSpa
     })
     .createUtils();
 
-// Everything below is example-local Vue glue. The adapter itself only exposes getOidc().
-type AutoLogoutState = Parameters<Parameters<Oidc.LoggedIn["subscribeToAutoLogoutState"]>[0]>[0];
+let oidc: Oidc<User_client> | undefined = undefined;
+const userRef = shallowRef<User_client>();
+const autoLogoutStateRef = shallowRef<AutoLogoutState>({ shouldDisplayWarning: false });
 
-const oidcState = shallowRef<Oidc<User_client>>();
-const userState = shallowRef<User_client>();
-const autoLogoutState = shallowRef<AutoLogoutState>({ shouldDisplayWarning: false });
-
-// Called once before installing the router and mounting Vue.
 export async function initializeOidc(): Promise<void> {
-    const oidc = await getOidc();
-    oidcState.value = oidc;
+    oidc = await getOidc();
 
     if (oidc.isUserLoggedIn) {
+        userRef.value = await oidc.getUser();
+
         oidc.subscribeToUserChange(({ user }) => {
-            userState.value = user;
-        });
-        oidc.subscribeToAutoLogoutState(state => {
-            autoLogoutState.value = state;
+            userRef.value = user;
         });
 
-        // Subscribe before the first read to observe both initial creation and refreshes.
-        userState.value = await oidc.getUser();
+        oidc.subscribeToAutoLogoutState(state => {
+            autoLogoutStateRef.value = state;
+        });
     }
 }
 
-export function useOidc() {
-    return {
-        oidc: shallowReadonly(oidcState),
-        user: shallowReadonly(userState),
-        autoLogoutState: shallowReadonly(autoLogoutState)
-    };
+export function getOidcSync(): Oidc<User_client> {
+    assert(oidc !== undefined, "Await initializeOidc() before calling useOidc().");
+    return oidc;
 }
 
-// Vue Router supplies the target href, including the application's base path.
-export async function enforceLogin(targetHref: string): Promise<void> {
+export function useUser() {
+    return computed(() => {
+        const user = userRef.value;
+
+        assert(
+            user !== undefined,
+            "Await initializeOidc() and make sure user is logged in when calling useUser"
+        );
+
+        return user;
+    });
+}
+
+export function useAutoLogoutState() {
+    return autoLogoutStateRef;
+}
+
+// NOTE: Expect the toHref to be a fully qualified href
+export async function enforceLogin(toHref: string): Promise<void> {
     const oidc = await getOidc();
 
-    if (oidc.initializationError !== undefined) {
-        throw oidc.initializationError;
-    }
-
     if (!oidc.isUserLoggedIn) {
-        const returnToUrl = new URL(targetHref, window.location.origin).href;
+        if (oidc.initializationError !== undefined) {
+            throw oidc.initializationError;
+        }
+
         await oidc.login({
-            returnToUrl,
-            doesCurrentHrefEnforceLogin: returnToUrl === window.location.href
+            returnToUrl: toHref,
+            doesCurrentHrefEnforceLogin: toHref === location.href
         });
     }
 }

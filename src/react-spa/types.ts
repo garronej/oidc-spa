@@ -6,12 +6,13 @@ import type {
     OidcProviderMetadata,
     OidcUserInfo,
     Oidc,
-    OidcTokens
+    OidcTokens,
+    AutoLogoutState
 } from "../core";
 import type { MaybeAsync } from "../tools/MaybeAsync";
 import { assert, type Equals } from "../tools/tsafe/assert";
 
-export type { IdTokenClaims, OidcProviderMetadata, OidcUserInfo, OidcTokens, Oidc };
+export type { IdTokenClaims, OidcProviderMetadata, OidcUserInfo, OidcTokens, Oidc, AutoLogoutState };
 
 export type UseOidc<User> = {
     (params?: { assert?: undefined }): Oidc_react<User>;
@@ -62,7 +63,7 @@ export namespace Oidc_react {
         startAuthorization: Oidc.LoggedIn["startAuthorization"];
         authorizationResult: Oidc.LoggedIn["authorizationResult"];
         isNewBrowserSession: boolean;
-        autoLogoutState: Parameters<Parameters<Oidc.LoggedIn["subscribeToAutoLogoutState"]>[0]>[0];
+        autoLogoutState: AutoLogoutState;
         user: User;
         refreshUser: () => Promise<void>;
     };

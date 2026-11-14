@@ -6,12 +6,11 @@ import { useOidc } from "../oidc";
 
 const { oidc, user } = useOidc();
 const homeUrl = import.meta.env.BASE_URL;
-const keycloakUtils = computed(() => {
-    if (!oidc.value || !isKeycloak({ issuerUri: oidc.value.issuerUri })) {
-        return undefined;
-    }
-    return createKeycloakUtils({ issuerUri: oidc.value.issuerUri });
-});
+const keycloakUtils = computed(() =>
+    !isKeycloak({ issuerUri: oidc.value.issuerUri }) ?
+        undefined :
+        createKeycloakUtils({ issuerUri: oidc.value.issuerUri })
+);
 </script>
 
 <template>
@@ -22,44 +21,29 @@ const keycloakUtils = computed(() => {
                 <RouterLink to="/">Home</RouterLink>
                 <RouterLink to="/todo-list-trpc">Todos · tRPC</RouterLink>
                 <RouterLink to="/todo-list-api">Todos · API</RouterLink>
-                <RouterLink
-                    v-if="oidc?.isUserLoggedIn && user?.canSeeAdminNavigation"
-                    to="/todo-list-admin"
-                >
+                <RouterLink v-if="oidc.isUserLoggedIn && user.canSeeAdminNavigation" to="/todo-list-admin">
                     Admin
                 </RouterLink>
             </nav>
             <div class="actions">
-                <template v-if="oidc?.isUserLoggedIn">
-                    <RouterLink v-if="user" to="/account" class="avatar" aria-label="Open your account">
-                        <img
-                            :src="user.avatarImgUrl"
-                            :alt="`${user.displayName}'s avatar`"
-                            width="32"
-                            height="32"
-                        />
+                <template v-if="oidc.isUserLoggedIn">
+                    <RouterLink to="/account" class="avatar" aria-label="Open your account">
+                        <img :src="user.avatarImgUrl" :alt="`${user.displayName}'s avatar`" width="32" height="32" />
                     </RouterLink>
                     <button type="button" @click="oidc.logout({ returnToUrl: homeUrl })">Logout</button>
                 </template>
-                <template v-else-if="oidc">
-                    <button
-                        type="button"
-                        class="button-primary"
-                        @click="oidc.login({ doesCurrentHrefEnforceLogin: false })"
-                    >
+                <template v-else>
+                    <button type="button" class="button-primary"
+                        @click="oidc.login({ doesCurrentHrefEnforceLogin: false })">
                         Login
                     </button>
-                    <button
-                        v-if="keycloakUtils"
-                        type="button"
-                        @click="
-                            oidc.login({
-                                doesCurrentHrefEnforceLogin: false,
-                                transformAuthorizationUrl:
-                                    keycloakUtils.transformAuthorizationUrl_register
-                            })
-                        "
-                    >
+                    <button v-if="keycloakUtils" type="button" @click="
+                        oidc.login({
+                            doesCurrentHrefEnforceLogin: false,
+                            transformAuthorizationUrl:
+                                keycloakUtils.transformAuthorizationUrl_register
+                        })
+                        ">
                         Register
                     </button>
                 </template>
