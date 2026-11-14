@@ -51,10 +51,12 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/blob/main/examples/fr
                         uses <code>withUser()</code> to map token claims to a display name, email,
                         avatar, and admin navigation flag. <code>createUtils()</code> only returns
                         <code>getOidc()</code>. The local wrapper subscribes to user and auto-logout
-                        changes and exposes readonly Vue refs through <code>useOidc()</code>. Refresh
-                        your profile on the account page to recompute the user.
+                        changes. Components read the stable client with <code>getOidcSync()</code>, the
+                        reactive user with <code>useUser()</code>, and inactivity warnings with
+                        <code>useAutoLogoutState()</code>.
                     </p>
-                    <pre><code>const { oidc, user, autoLogoutState } = useOidc();</code></pre>
+                    <pre><code>const oidc = getOidcSync();
+const user = useUser();</code></pre>
                 </li>
                 <li>
                     <h3>Choose a provider through configuration</h3>
@@ -74,7 +76,8 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/blob/main/examples/fr
                 <li>
                     <h3>Protect pages with Vue Router</h3>
                     <p>
-                        <code>src/router.ts</code> groups protected pages under a shared layout with
+                        <code>src/pages/authenticated/</code> contains protected pages.
+                        <code>src/router.ts</code> groups them under a shared layout with
                         <code>meta.requiresAuth</code>. Its navigation guard calls the local
                         <code>enforceLogin()</code> helper with the destination URL before a protected
                         page mounts. The layout displays the inactivity warning; home and inactivity
@@ -82,7 +85,8 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/blob/main/examples/fr
                     </p>
                     <pre><code>router.beforeEach(async to =&gt; {
     if (to.meta.requiresAuth) {
-        await enforceLogin(router.resolve(to).href);
+        const toHref = new URL(router.resolve(to).href, location.origin).href;
+        await enforceLogin(toHref);
     }
 });</code></pre>
                 </li>

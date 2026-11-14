@@ -1,6 +1,9 @@
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "../server/trpc";
+import type { inferRouterOutputs } from "@trpc/server";
 import { getOidc } from "./oidc";
+
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export const trpc = createTRPCClient<AppRouter>({
     links: [

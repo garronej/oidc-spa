@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
-import AutoLogoutWarningOverlay from "./AutoLogoutWarningOverlay.vue";
+import AutoLogoutWarningOverlay from "../../components/AutoLogoutWarningOverlay.vue";
 </script>
 
 <template>

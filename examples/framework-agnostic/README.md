@@ -12,21 +12,18 @@ Use Node.js 22.22+ and Yarn. From the repository root:
 yarn start-framework-agnostic-example
 ```
 
-This builds the library, installs the example dependencies, and starts Vite and
-the Express API. Open **http://app.localhost:3000**. Vite proxies `/api` to port 3001.
+This builds the library, installs the example dependencies, copies the local build
+into the example, and starts Vite and Express. Open **http://app.localhost:3000**.
+Vite proxies `/api` to port 3001.
 
-The example depends on the local build at `../../dist`, so build the library before
-installing dependencies if you work directly inside this directory:
+To run against the published library instead, start inside this directory:
 
 ```sh
-# Repository root
-yarn build
-cd examples/framework-agnostic
 yarn
 yarn dev
 ```
 
-The tracked `.env` defaults to `VITE_OIDC_PROVIDER=mock`: a signed-in admin with no
+Set `VITE_OIDC_PROVIDER=mock` in `.env` to explore as a signed-in admin without an
 external identity provider. Logout and login reload the app with the mock login
 state in the URL. Both API implementations use mock validation in this mode.
 
@@ -43,7 +40,7 @@ in the frontend; introspection secrets and KV credentials stay on the server.
 -   `/todo-list-trpc`: personal todos using tRPC.
 -   `/todo-list-api`: the same todos using fetch and Express handlers.
 -   `/todo-list-admin`: todos grouped by user ID, with admin-only deletion.
--   `/account`: profile, user refresh, and Keycloak account actions.
+-   `/account`: profile information and Keycloak account actions.
 -   `/inactivity-logout`: public message and a link to resume the previous page.
 
 ## The local Vue wrapper
@@ -55,21 +52,31 @@ adapter returns only `getOidc()`. The rest is ordinary Vue and Vue Router code:
 -   `initializeOidc()` awaits the initial user and subscribes to user changes and
     auto-logout warnings. `src/main.ts` awaits it before installing
     the router and mounting the app.
--   `useOidc()` exposes readonly refs for the OIDC client, user, and auto-logout state.
-    It asserts that initialization has finished, so the client ref is non-optional.
-    Read the user ref when logged in; it also asserts that a user is available.
-    Core login state is fixed for the lifetime of the page; user refreshes and warning
-    updates are reactive. Subscriptions belong to the app.
--   `enforceLogin(targetHref)` is used by a global navigation guard for routes with
-    `meta.requiresAuth`. It redirects to sign-in with the destination URL and marks
-    whether the current URL itself requires login.
+-   `getOidcSync()` returns the initialized client. The client and its login state
+    are fixed for the lifetime of the page, so they do not need Vue refs.
+-   `useUser()` returns a readonly computed ref. Read it when logged in; it asserts
+    that a user is available. User changes update components through the subscription
+    installed during initialization.
+-   `useAutoLogoutState()` returns a readonly ref for inactivity warnings.
+-   `enforceLogin(toHref)` is used by a global navigation guard for routes with
+    `meta.requiresAuth`. The router builds a fully qualified destination URL, including
+    the application base path. The helper redirects to sign-in and marks whether the
+    current URL itself requires login.
 -   `fetchWithAuth()` attaches a current access token to REST requests.
     `src/trpc.ts` obtains tokens through the same `getOidc()` for its header callback.
 
-`src/components/AuthenticatedLayout.vue` hosts protected pages and the inactivity
-warning overlay. The account page calls `refreshUser()` to demonstrate how the
-subscription updates Vue state. Automatic logout preserves the current URL for
-the public inactivity page; its resume link accepts only same-origin destinations.
+`src/pages/authenticated/` contains the protected pages and their shared `Layout.vue`,
+which displays the inactivity warning overlay. This folder is an organizational
+convention; the route metadata and guard in `src/router.ts` enforce authentication.
+Home and inactivity logout remain public, and the folder adds no URL segment.
+
+`TodoListApi.vue` and `TodoListTrpc.vue` each contain their own loading and submission
+code, so you can read either integration independently. The REST page types its JSON
+response as `TodoItem[]`; the tRPC pages use the server router's inferred output types
+through `RouterOutputs`. Each page loads its data on mount and reloads after a mutation.
+
+Automatic logout preserves the current URL for the public inactivity page; its resume
+link accepts only same-origin destinations.
 
 ## Backend and storage
 
@@ -86,7 +93,6 @@ already have a backend, replace these example API calls with your own.
 
 ```sh
 yarn typecheck
-yarn test
 yarn build
 yarn start
 ```
@@ -97,7 +103,7 @@ production port; `API_PORT` overrides the development API port. Update Vite's pr
 if you change `API_PORT`.
 
 For Vercel, use `examples/framework-agnostic` as the project root. The included
-`vercel.json` builds the library before installing this example's local dependency,
+`vercel.json` builds the library before installing the example dependencies,
 sends `/api/*` to `api/index.ts`, and sends other paths to the SPA. Configure provider
 variables before building, and use Redis for persistent todos rather than the
 deployment's filesystem.

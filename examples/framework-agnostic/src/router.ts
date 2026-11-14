@@ -13,13 +13,22 @@ export const router = createRouter({
         { path: "/", component: () => import("./pages/Home.vue") },
         {
             path: "/",
-            component: () => import("./components/AuthenticatedLayout.vue"),
+            component: () => import("./pages/authenticated/Layout.vue"),
             meta: { requiresAuth: true },
             children: [
-                { path: "todo-list-trpc", component: () => import("./pages/TodoListTrpc.vue") },
-                { path: "todo-list-api", component: () => import("./pages/TodoListApi.vue") },
-                { path: "todo-list-admin", component: () => import("./pages/TodoListAdmin.vue") },
-                { path: "account", component: () => import("./pages/Account.vue") }
+                {
+                    path: "todo-list-trpc",
+                    component: () => import("./pages/authenticated/TodoListTrpc.vue")
+                },
+                {
+                    path: "todo-list-api",
+                    component: () => import("./pages/authenticated/TodoListApi.vue")
+                },
+                {
+                    path: "todo-list-admin",
+                    component: () => import("./pages/authenticated/TodoListAdmin.vue")
+                },
+                { path: "account", component: () => import("./pages/authenticated/Account.vue") }
             ]
         },
         { path: "/inactivity-logout", component: () => import("./pages/InactivityLogout.vue") },

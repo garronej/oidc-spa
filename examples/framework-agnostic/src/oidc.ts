@@ -2,11 +2,11 @@ import { oidcSpa } from "oidc-spa/framework-agnostic";
 import { z } from "zod";
 import { decodeJwt } from "oidc-spa/decode-jwt";
 import avatarFallbackSvgUrl from "./assets/userPictureFallback.svg";
-import { computed, shallowRef } from "vue";
+import { computed, shallowRef, shallowReadonly } from "vue";
 import type { Oidc, AutoLogoutState } from "oidc-spa/framework-agnostic";
 import { assert } from "tsafe";
 
-// App-specific user model exposed by `useOidc()`.
+// App-specific user model exposed by `useUser()`.
 // Shape it around the information the UI needs to render.
 export type User_client = {
     displayName: string;
@@ -114,6 +114,7 @@ let oidc: Oidc<User_client> | undefined = undefined;
 const userRef = shallowRef<User_client>();
 const autoLogoutStateRef = shallowRef<AutoLogoutState>({ shouldDisplayWarning: false });
 
+// Called once before installing the router and mounting Vue.
 export async function initializeOidc(): Promise<void> {
     oidc = await getOidc();
 
@@ -131,17 +132,18 @@ export async function initializeOidc(): Promise<void> {
 }
 
 export function getOidcSync(): Oidc<User_client> {
-    assert(oidc !== undefined, "Await initializeOidc() before calling useOidc().");
+    assert(oidc !== undefined, "Await initializeOidc() before calling getOidcSync().");
     return oidc;
 }
 
+// Read the computed ref only when logged in.
 export function useUser() {
     return computed(() => {
         const user = userRef.value;
 
         assert(
             user !== undefined,
-            "Await initializeOidc() and make sure user is logged in when calling useUser"
+            "Await initializeOidc() and make sure the user is logged in before reading useUser()."
         );
 
         return user;
@@ -149,7 +151,7 @@ export function useUser() {
 }
 
 export function useAutoLogoutState() {
-    return autoLogoutStateRef;
+    return shallowReadonly(autoLogoutStateRef);
 }
 
 // NOTE: Expect the toHref to be a fully qualified href

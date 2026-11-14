@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useOidc } from "../oidc";
+import { useAutoLogoutState } from "../oidc";
 
-const { autoLogoutState } = useOidc();
+const autoLogoutState = useAutoLogoutState();
 </script>
 
 <template>
