@@ -15,6 +15,7 @@
         "test:react-router-bootstrap": "node --test scripts/tests/react-router-bootstrap.test.mjs scripts/tests/react-router-bootstrap.integration.mjs",
         "test:react-nextjs": "tsc --project tests/react-nextjs/tsconfig.json",
         "test:framework-agnostic": "node --test scripts/tests/framework-agnostic.test.mjs && tsc --project tests/framework-agnostic/tsconfig.json",
+        "test:vue": "node --test scripts/tests/vue.test.mjs && vue-tsc --project tests/vue/tsconfig.json",
         "test:tanstack-start-runtime-configs": "tsx scripts/tests/tanstack-start-runtime-configs.test.ts && tsc --project tests/tanstack-start-runtime-configs/tsconfig.json",
         "test:tanstack-start-auth": "node --test scripts/tests/tanstack-start-client.test.mjs scripts/tests/tanstack-start-auth.integration.mjs",
         "_format": "prettier '**/*.{ts,tsx,json,md}'",
@@ -29,6 +30,7 @@
         "start-tanstack-start-example": "bash ./scripts/start-example.sh tanstack-start dev",
         "start-tanstack-router-example": "bash ./scripts/start-example.sh tanstack-router dev",
         "start-framework-agnostic-example": "bash ./scripts/start-example.sh framework-agnostic dev",
+        "start-vue-example": "bash ./scripts/start-example.sh vue dev",
         "start-nuxt-spa-example": "bash ./scripts/start-example.sh nuxt-spa dev"
     },
     "lint-staged": {
@@ -51,6 +53,7 @@
         "keycloak",
         "keycloak-js",
         "react",
+        "vue",
         "angular",
         "TanStack Start"
     ],
@@ -66,7 +69,8 @@
         "@types/react": "*",
         "next": "*",
         "react": "*",
-        "rxjs": "*"
+        "rxjs": "*",
+        "vue": "^3.5.0"
     },
     "peerDependenciesMeta": {
         "next": {
@@ -97,6 +101,9 @@
             "optional": true
         },
         "@tanstack/react-router": {
+            "optional": true
+        },
+        "vue": {
             "optional": true
         }
     },
@@ -143,6 +150,8 @@
         "tsx": "^4.15.5",
         "typescript": "5.7.2",
         "vite": "^7.1.10",
+        "vue": "^3.5.0",
+        "vue-tsc": "^3.3.14",
         "webcrypto-liner-shim": "1.4.8",
         "webpack": "5.93.0",
         "webpack-cli": "5.1.4",
@@ -197,6 +206,12 @@
             "module": "./dist/esm/react-spa/index.mjs",
             "import": "./dist/esm/react-spa/index.mjs",
             "default": "./dist/react-spa/index.js"
+        },
+        "./vue": {
+            "types": "./dist/esm/vue/index.d.ts",
+            "module": "./dist/esm/vue/index.mjs",
+            "import": "./dist/esm/vue/index.mjs",
+            "default": "./dist/vue/index.js"
         },
         "./framework-agnostic": {
             "module": "./dist/esm/framework-agnostic/index.mjs",

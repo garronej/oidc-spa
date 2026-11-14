@@ -299,6 +299,11 @@ for (const isAsync of [false, true]) {
         const imperative = await utils.getOidc();
         assert.equal(imperative.isUserLoggedIn, false);
         assert.equal(imperative.initializationError, error);
+        for (const state of [oidc, imperative]) {
+            assert.equal(state.issuerUri, "https://not-resolved-yet");
+            assert.equal(state.clientId, "not-resolved-yet");
+            assert.equal(state.validRedirectUri, "https://app.test/");
+        }
         assert.equal(await utils.getOidc(), imperative);
         await assert.rejects(utils.getOidc({ assert: "user logged in" }), e => e === error);
         assert.throws(
@@ -351,6 +356,44 @@ test(`core initialization failures use the UI error path`, async () => {
     assert.equal((await utils.getOidc()).initializationError, core.error);
     await assert.rejects(utils.getOidc({ assert: "user logged in" }), e => e === core.error);
 });
+
+for (const issuerUri of ["/realms/demo/", "https://auth.test/realms/demo/"]) {
+    test(`thrown core failures expose metadata and preserve protected-route errors: ${issuerUri}`, async () => {
+        const core = resetCore();
+        const error = new OidcInitializationError({
+            isAuthServerLikelyDown: false,
+            messageOrCause: "client initialization failed"
+        });
+        core.createOidc = async () => {
+            throw error;
+        };
+        const utils = oidcSpa.withUser(anonymousFactory).createUtils();
+        const { injector, initialization } = app([
+            utils.provideOidc({ mode: "real", issuerUri, clientId: "configured-client" }),
+            { provide: Router, useValue: { events: new Subject(), getCurrentNavigation: () => null } }
+        ]);
+        await initialization.donePromise;
+        const injected = runInInjectionContext(injector, () => utils.injectOidc());
+        const imperative = await utils.getOidc();
+        for (const state of [injected, imperative]) {
+            assert.equal(state.initializationError, error);
+            assert.equal(
+                state.issuerUri,
+                issuerUri.startsWith("/")
+                    ? "https://app.test/realms/demo"
+                    : "https://auth.test/realms/demo"
+            );
+            assert.equal(state.clientId, "configured-client");
+            assert.equal(state.validRedirectUri, "https://app.test/");
+        }
+        await assert.rejects(
+            runInInjectionContext(injector, () =>
+                utils.enforceLoginGuard(route, routerState("/protected"))
+            ),
+            e => e === error
+        );
+    });
+}
 
 test(`initial user failure preserves imperative tokens`, async () => {
     const core = resetCore();

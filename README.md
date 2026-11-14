@@ -125,7 +125,9 @@ if (shouldLoadApp) {
 For a complete app using this adapter with Vue and Vue Router, see
 the [framework-agnostic example](examples/framework-agnostic).
 
-Higher-level adapters, example with React but we also feature a similar Angular adapter:
+Higher-level adapters are available for React, Vue, and Angular. See the
+[Vue example](examples/vue) for the Vue adapter with Vue Router.
+Example with React:
 
 <img width="1835" height="942" alt="Image" src="https://github.com/user-attachments/assets/a7a18bbc-998a-459c-8cfa-93b599a45524" />
 

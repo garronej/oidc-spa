@@ -2,6 +2,8 @@ import type { OidcSpaUtils, RuntimeConfigs, CreateClientUser, Oidc } from "./typ
 import { OidcInitializationError } from "../core/OidcInitializationError";
 import { isBrowser } from "../tools/isBrowser";
 import type { OptionallyAsyncGetterOrDirectValue } from "../tools/GetterOrDirectValue";
+import { toFullyQualifiedUrl } from "../tools/toFullyQualifiedUrl";
+import { getBASE_URL_earlyInit } from "../core/earlyInit_BASE_URL";
 
 export function createUtils<User>(params: {
     createUser: CreateClientUser<User>;
@@ -9,20 +11,36 @@ export function createUtils<User>(params: {
 }): OidcSpaUtils<User> {
     const { createUser, getRuntimeConfigsOrRuntimeConfigs } = params;
 
-    function initializationFailed(initializationError: OidcInitializationError): Oidc.NotLoggedIn {
-        const getAccessErrorMessage = (propertyName: string) =>
-            `oidc-spa: Cannot read oidc.${propertyName} because OIDC initialization failed before a client was available. Check oidc.initializationError before accessing provider configuration.`;
+    function initializationFailed(params: {
+        initializationError: OidcInitializationError;
+        config:
+            | {
+                  issuerUri: string;
+                  clientId: string;
+              }
+            | undefined;
+    }): Oidc.NotLoggedIn {
+        const { initializationError, config } = params;
 
         return {
             isUserLoggedIn: false,
-            get clientId(): string {
-                throw new Error(getAccessErrorMessage("clientId"));
-            },
-            get issuerUri(): string {
-                throw new Error(getAccessErrorMessage("issuerUri"));
-            },
+            issuerUri:
+                config === undefined
+                    ? "https://not-resolved-yet"
+                    : toFullyQualifiedUrl({
+                          urlish: config.issuerUri,
+                          doAssertNoQueryParams: true,
+                          doOutputWithTrailingSlash: false,
+                          rootUrl_fullyQualified: window.location.origin
+                      }),
+            clientId: config === undefined ? "not-resolved-yet" : config.clientId,
             get validRedirectUri(): string {
-                throw new Error(getAccessErrorMessage("validRedirectUri"));
+                return toFullyQualifiedUrl({
+                    urlish: getBASE_URL_earlyInit(),
+                    doAssertNoQueryParams: true,
+                    doOutputWithTrailingSlash: true,
+                    rootUrl_fullyQualified: window.location.origin
+                });
             },
             login: async () => {
                 alert("Authentication is currently unavailable. Please try again later.");
@@ -41,16 +59,17 @@ export function createUtils<User>(params: {
                     ? await getRuntimeConfigsOrRuntimeConfigs()
                     : getRuntimeConfigsOrRuntimeConfigs;
         } catch (error) {
-            return initializationFailed(
-                new OidcInitializationError({
+            return initializationFailed({
+                initializationError: new OidcInitializationError({
                     isAuthServerLikelyDown: false,
                     messageOrCause: new Error(
                         "Error thrown while evaluating the runtime configs getter on the client",
                         // @ts-expect-error
                         { cause: error }
                     )
-                })
-            );
+                }),
+                config: undefined
+            });
         }
 
         switch (runtimeConfigs.mode) {
@@ -93,7 +112,13 @@ export function createUtils<User>(params: {
                         throw error;
                     }
 
-                    return initializationFailed(error);
+                    return initializationFailed({
+                        initializationError: error,
+                        config: {
+                            issuerUri: runtimeConfigs.issuerUri,
+                            clientId: runtimeConfigs.clientId
+                        }
+                    });
                 }
             }
         }

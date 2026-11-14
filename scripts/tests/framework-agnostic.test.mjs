@@ -192,7 +192,9 @@ test("runtime config failures expose a stable initialization error", async () =>
     assert(oidc.initializationError instanceof OidcInitializationError);
     assert.equal(oidc.initializationError.cause.cause, failure);
     assert.equal(await getOidc(), oidc);
-    assert.throws(() => oidc.issuerUri, /Check oidc.initializationError/);
+    assert.equal(oidc.issuerUri, "https://not-resolved-yet");
+    assert.equal(oidc.clientId, "not-resolved-yet");
+    assert.equal(oidc.validRedirectUri, "https://app.test/app/");
 });
 
 test("real initialization failures use the public error type", async () => {
@@ -210,8 +212,39 @@ test("real initialization failures use the public error type", async () => {
         .withUser(() => ({}))
         .withRuntimeConfigs({ mode: "real", issuerUri: "https://auth.test", clientId: "app" })
         .createUtils();
-    assert.equal((await getOidc()).initializationError, failure);
+    const oidc = await getOidc();
+    assert.equal(oidc.initializationError, failure);
+    assert.equal(oidc.issuerUri, "https://auth.test");
+    assert.equal(oidc.clientId, "app");
+    assert.equal(oidc.validRedirectUri, "https://app.test/app/");
 });
+
+for (const issuerUri of ["/realms/demo/", "https://auth.test/realms/demo/"]) {
+    test(`failed client metadata preserves the error and handles issuer ${issuerUri}`, async () => {
+        let failure;
+        const { oidcSpa, OidcInitializationError } = load({
+            createOidc: () => {
+                throw failure;
+            }
+        });
+        failure = new OidcInitializationError({
+            isAuthServerLikelyDown: false,
+            messageOrCause: "initialization failed"
+        });
+        const { getOidc } = oidcSpa
+            .withUser(() => ({}))
+            .withRuntimeConfigs({ mode: "real", issuerUri, clientId: "configured-client" })
+            .createUtils();
+        const oidc = await getOidc();
+        assert.equal(oidc.initializationError, failure);
+        assert.equal(
+            oidc.issuerUri,
+            issuerUri.startsWith("/") ? "https://app.test/realms/demo" : "https://auth.test/realms/demo"
+        );
+        assert.equal(oidc.clientId, "configured-client");
+        assert.equal(oidc.validRedirectUri, "https://app.test/app/");
+    });
+}
 
 test("server reads fail before evaluating runtime configs", async () => {
     const { oidcSpa } = load({ browser: false });

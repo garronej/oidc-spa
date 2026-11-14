@@ -9,6 +9,7 @@ const { outputFiles } = await build({
     stdin: {
         contents: `
             export * from "./src/tanstack-start/react";
+            export { oidcSpa as reactSpa } from "./src/react-spa";
             export { setBASE_URL_earlyInit } from "./src/core/earlyInit_BASE_URL";
             export { setGetRootRelativeOriginalLocationHref_earlyInit } from "./src/core/earlyInit_rootRelativeOriginalLocationHref";
         `,
@@ -28,6 +29,7 @@ const { outputFiles } = await build({
                     export const useReducer = (fn, init) => globalThis.hooks.useReducer(fn, init);
                     export const useEffect = (fn, deps) => globalThis.hooks.useEffect(fn, deps);
                     export const useLayoutEffect = useEffect;
+                    export const createElement = (type, props, ...children) => ({ type, props: { ...props, children } });
                 `,
                     "@tanstack/react-start": `
                     export const createServerFn = () => ({ handler: () => () => globalThis.fetchServerEnv() });
@@ -44,6 +46,7 @@ const { outputFiles } = await build({
                 `,
                     "../../core":
                         "export const createOidc = params => globalThis.createCoreOidc(params);",
+                    "../core": "export const createOidc = params => globalThis.createCoreOidc(params);",
                     "virtual:oidc-spa/tanstack-start-public-env": `
                     export const publicEnvNames = new Set(globalThis.publicEnvNames);
                     export const toRedactEnvNames = new Set();
@@ -51,7 +54,8 @@ const { outputFiles } = await build({
                 };
                 build.onResolve({ filter: /.*/ }, ({ path, importer }) =>
                     Object.hasOwn(stubs, path) &&
-                    (path !== "../../core" || importer.endsWith("/react/createUtils.ts"))
+                    (path !== "../../core" || importer.endsWith("/react/createUtils.ts")) &&
+                    (path !== "../core" || importer.endsWith("/react-spa/createUtils.ts"))
                         ? { path, namespace: "fixture" }
                         : undefined
                 );
@@ -141,6 +145,7 @@ function fixture({ browser = true, loggedIn = true, envNames = [] } = {}) {
         },
         createCoreOidc: async params => {
             record.coreCalls++;
+            if (control.coreThrow) throw control.coreThrow;
             const common = {
                 issuerUri: params.issuerUri,
                 clientId: params.clientId,
@@ -239,6 +244,9 @@ for (const asynchronous of [false, true]) {
         assert(error instanceof f.OidcInitializationError);
         assert.equal(error.cause.cause, cause);
         assert.equal(oidc.isUserLoggedIn, false);
+        assert.equal(oidc.issuerUri, "https://not-resolved-yet");
+        assert.equal(oidc.clientId, "not-resolved-yet");
+        assert.equal(oidc.validRedirectUri, "https://app.test/");
         assert.equal(await utils.getOidc(), oidc);
         await assert.rejects(utils.getOidc({ assert: "user logged in" }), e => e === error);
         await assert.rejects(
@@ -256,6 +264,80 @@ for (const asynchronous of [false, true]) {
             e => e === error
         );
     });
+}
+
+for (const adapter of ["react-spa", "tanstack-start"]) {
+    const createUtils = (f, runtimeConfigs) =>
+        adapter === "react-spa"
+            ? f.reactSpa
+                  .withUser(() => ({}))
+                  .withRuntimeConfigs(runtimeConfigs)
+                  .createUtils()
+            : f.createUtils(undefined, runtimeConfigs);
+    const enforceLogin = utils =>
+        adapter === "react-spa"
+            ? utils.enforceLogin({ request: { url: "https://app.test/private" } })
+            : utils.enforceLogin(navigation());
+
+    test(`${adapter}: failed config metadata can be destructured without hiding the error`, async () => {
+        const f = fixture();
+        const cause = new Error("config unavailable");
+        const utils = createUtils(f, () => {
+            throw cause;
+        });
+        const { issuerUri, clientId, validRedirectUri, initializationError } = await utils.getOidc();
+        assert.equal(issuerUri, "https://not-resolved-yet");
+        assert.equal(clientId, "not-resolved-yet");
+        assert.equal(validRedirectUri, "https://app.test/");
+        assert.equal(initializationError.cause.cause, cause);
+        if (adapter === "react-spa") {
+            const state = f.render(utils.useOidc);
+            assert.equal(state.issuerUri, issuerUri);
+            assert.equal(state.clientId, clientId);
+            assert.equal(state.validRedirectUri, validRedirectUri);
+            assert.equal(state.initializationError, initializationError);
+            const Protected = utils.withLoginEnforced({ component() {} });
+            assert.equal(f.render(Protected).props.role, "alert");
+        }
+        await assert.rejects(enforceLogin(utils), error => error === initializationError);
+    });
+
+    for (const issuerUri of ["/realms/demo/", "https://auth.test/realms/demo/"]) {
+        test(`${adapter}: preserve configured metadata after client failure: ${issuerUri}`, async () => {
+            const f = fixture();
+            const error = new f.OidcInitializationError({
+                isAuthServerLikelyDown: false,
+                messageOrCause: "client failed"
+            });
+            f.control.coreThrow = error;
+            const config =
+                adapter === "react-spa"
+                    ? { mode: "real", issuerUri, clientId: "configured-client" }
+                    : { mode: "real", issuerUri, client: { clientId: "configured-client" } };
+            const utils = createUtils(f, config);
+            const oidc = await utils.getOidc();
+            assert.equal(oidc.initializationError, error);
+            assert.equal(oidc.clientId, "configured-client");
+            assert.equal(oidc.validRedirectUri, "https://app.test/");
+            assert.equal(
+                oidc.issuerUri,
+                issuerUri.startsWith("/")
+                    ? "https://app.test/realms/demo"
+                    : "https://auth.test/realms/demo"
+            );
+            if (adapter === "react-spa") {
+                const state = f.render(utils.useOidc);
+                assert.equal(state.issuerUri, oidc.issuerUri);
+                assert.equal(state.clientId, oidc.clientId);
+                assert.equal(state.initializationError, error);
+            } else {
+                f.render(utils.useOidc);
+                f.commit();
+                assert.equal(f.render(utils.useOidc).isOidcReady, false);
+            }
+            await assert.rejects(enforceLogin(utils), e => e === error);
+        });
+    }
 }
 
 test("failure to retrieve server environment settles client initialization", async () => {

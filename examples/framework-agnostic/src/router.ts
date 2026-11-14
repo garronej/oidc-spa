@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { enforceLogin } from "./oidc";
+import { OidcInitializationError } from "oidc-spa/framework-agnostic";
 
 declare module "vue-router" {
     interface RouteMeta {
@@ -40,6 +41,10 @@ export const router = createRouter({
 router.beforeEach(async to => {
     if (to.meta.requiresAuth) {
         const toHref = new URL(router.resolve(to).href, location.origin).href;
-        await enforceLogin(toHref);
+        const error = await enforceLogin(toHref).catch((error: OidcInitializationError) => error);
+
+        if (error) {
+            return { name: "authentication-error" };
+        }
     }
 });

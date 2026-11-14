@@ -26,6 +26,7 @@ import { OidcInitializationError } from "../core/OidcInitializationError";
 import { Deferred } from "../tools/Deferred";
 import type { OptionallyAsyncGetterOrDirectValue } from "../tools/GetterOrDirectValue";
 import { toFullyQualifiedUrl } from "../tools/toFullyQualifiedUrl";
+import { getBASE_URL_earlyInit } from "../core/earlyInit_BASE_URL";
 
 export function createUtils<User>(params: {
     providerAwaitsInitialization: boolean;
@@ -38,6 +39,45 @@ export function createUtils<User>(params: {
     let dRuntime = new Deferred<Runtime>();
     let activeRuntime: Runtime | undefined;
 
+    function initializationFailed(params: {
+        initializationError: OidcInitializationError;
+        config:
+            | {
+                  issuerUri: string;
+                  clientId: string;
+              }
+            | undefined;
+    }): Oidc.NotLoggedIn {
+        const { initializationError, config } = params;
+
+        return {
+            isUserLoggedIn: false,
+            issuerUri:
+                config === undefined
+                    ? "https://not-resolved-yet"
+                    : toFullyQualifiedUrl({
+                          urlish: config.issuerUri,
+                          doAssertNoQueryParams: true,
+                          doOutputWithTrailingSlash: false,
+                          rootUrl_fullyQualified: window.location.origin
+                      }),
+            clientId: config === undefined ? "not-resolved-yet" : config.clientId,
+            get validRedirectUri(): string {
+                return toFullyQualifiedUrl({
+                    urlish: getBASE_URL_earlyInit(),
+                    doAssertNoQueryParams: true,
+                    doOutputWithTrailingSlash: true,
+                    rootUrl_fullyQualified: window.location.origin
+                });
+            },
+            login: async () => {
+                alert("Authentication is currently unavailable. Please try again later.");
+                return new Promise<never>(() => {});
+            },
+            initializationError
+        };
+    }
+
     function createRuntime() {
         const injector = inject(Injector);
         const destroyRef = inject(DestroyRef);
@@ -49,6 +89,7 @@ export function createUtils<User>(params: {
         type AutoLogoutState = ReturnType<Oidc_angular.LoggedIn<User>["autoLogoutState"]>;
         const autoLogoutState = signal<AutoLogoutState>({ shouldDisplayWarning: false });
         const cleanups = new Set<() => void>();
+        let failedClientConfig: Pick<Oidc.Common, "issuerUri" | "clientId"> | undefined;
         let hasStarted = false;
         let isRunningGetRuntimeConfigs = false;
         let isEvaluatingInterceptor = false;
@@ -133,13 +174,25 @@ export function createUtils<User>(params: {
                 return getInitializationError();
             },
             get issuerUri() {
-                return getCore("issuerUri").issuerUri;
+                const ctx = getClientCtx("issuerUri");
+                return ctx instanceof OidcInitializationError
+                    ? initializationFailed({ initializationError: ctx, config: failedClientConfig })
+                          .issuerUri
+                    : ctx.issuerUri;
             },
             get clientId() {
-                return getCore("clientId").clientId;
+                const ctx = getClientCtx("clientId");
+                return ctx instanceof OidcInitializationError
+                    ? initializationFailed({ initializationError: ctx, config: failedClientConfig })
+                          .clientId
+                    : ctx.clientId;
             },
             get validRedirectUri() {
-                return getCore("validRedirectUri").validRedirectUri;
+                const ctx = getClientCtx("validRedirectUri");
+                return ctx instanceof OidcInitializationError
+                    ? initializationFailed({ initializationError: ctx, config: failedClientConfig })
+                          .validRedirectUri
+                    : ctx.validRedirectUri;
             },
             get isUserLoggedIn() {
                 const ctx = getClientCtx("isUserLoggedIn");
@@ -282,6 +335,10 @@ export function createUtils<User>(params: {
                 case "real": {
                     const { createOidc } = await import("../core");
                     const { mode, ...configs } = runtimeConfigs;
+                    failedClientConfig = {
+                        issuerUri: configs.issuerUri,
+                        clientId: configs.clientId
+                    };
                     try {
                         oidcCore = await createOidc<User>({
                             ...configs,
@@ -336,20 +393,10 @@ export function createUtils<User>(params: {
             const ctx = await dClientCtx.pr;
             const oidc_core: Oidc<User> =
                 ctx instanceof OidcInitializationError
-                    ? {
-                          isUserLoggedIn: false,
+                    ? initializationFailed({
                           initializationError: ctx,
-                          get issuerUri() {
-                              return getCore("issuerUri").issuerUri;
-                          },
-                          get clientId() {
-                              return getCore("clientId").clientId;
-                          },
-                          get validRedirectUri() {
-                              return getCore("validRedirectUri").validRedirectUri;
-                          },
-                          login: oidc.login
-                      }
+                          config: failedClientConfig
+                      })
                     : ctx;
             checkAssertion(oidc_core, params?.assert, "getOidc");
             if (oidc_cached !== undefined) return oidc_cached;

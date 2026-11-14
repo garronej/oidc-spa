@@ -23,6 +23,7 @@ import { createStatefulEvt, type StatefulReadonlyEvt, type StatefulEvt } from ".
 import { id } from "../tools/tsafe/id";
 import type { OptionallyAsyncGetterOrDirectValue } from "../tools/GetterOrDirectValue";
 import { toFullyQualifiedUrl } from "../tools/toFullyQualifiedUrl";
+import { getBASE_URL_earlyInit } from "../core/earlyInit_BASE_URL";
 
 export function createUtils<User>(params: {
     createUser: CreateClientUser<User>;
@@ -44,10 +45,50 @@ export function createUtils<User>(params: {
 
     const { createUser } = params;
 
+    function initializationFailed(params: {
+        initializationError: OidcInitializationError;
+        config:
+            | {
+                  issuerUri: string;
+                  clientId: string;
+              }
+            | undefined;
+    }): Oidc.NotLoggedIn {
+        const { initializationError, config } = params;
+
+        return {
+            isUserLoggedIn: false,
+            issuerUri:
+                config === undefined
+                    ? "https://not-resolved-yet"
+                    : toFullyQualifiedUrl({
+                          urlish: config.issuerUri,
+                          doAssertNoQueryParams: true,
+                          doOutputWithTrailingSlash: false,
+                          rootUrl_fullyQualified: window.location.origin
+                      }),
+            clientId: config === undefined ? "not-resolved-yet" : config.clientId,
+            get validRedirectUri(): string {
+                return toFullyQualifiedUrl({
+                    urlish: getBASE_URL_earlyInit(),
+                    doAssertNoQueryParams: true,
+                    doOutputWithTrailingSlash: true,
+                    rootUrl_fullyQualified: window.location.origin
+                });
+            },
+            login: async () => {
+                alert("Authentication is currently unavailable. Please try again later.");
+                return new Promise<never>(() => {});
+            },
+            initializationError
+        };
+    }
+
     const dClientCtx = new Deferred<
         | {
               doWeHaveTheOidcObject: false;
               initializationError: OidcInitializationError;
+              config: Pick<Oidc.Common, "issuerUri" | "clientId"> | undefined;
           }
         | {
               doWeHaveTheOidcObject: true;
@@ -83,6 +124,7 @@ export function createUtils<User>(params: {
                 } catch (error) {
                     dClientCtx.resolve({
                         doWeHaveTheOidcObject: false,
+                        config: undefined,
                         initializationError: new OidcInitializationError({
                             isAuthServerLikelyDown: false,
                             messageOrCause: new Error(
@@ -175,7 +217,11 @@ export function createUtils<User>(params: {
 
                             dClientCtx.resolve({
                                 doWeHaveTheOidcObject: false,
-                                initializationError: error
+                                initializationError: error,
+                                config: {
+                                    issuerUri: runtimeConfigs.issuerUri,
+                                    clientId: runtimeConfigs.clientId
+                                }
                             });
 
                             break;
@@ -327,29 +373,11 @@ export function createUtils<User>(params: {
                 }
 
                 if (!ctx.doWeHaveTheOidcObject) {
-                    const getAccessErrorMessage = (propertyName: string) =>
-                        `oidc-spa: Cannot read oidc.${propertyName} because OIDC initialization failed before a client was available. Check oidc.initializationError before accessing provider configuration.`;
-
                     return {
                         isUserLoggedIn: false,
-                        oidc: id<Oidc.NotLoggedIn>({
-                            isUserLoggedIn: false,
-                            get clientId(): string {
-                                throw new Error(getAccessErrorMessage("clientId"));
-                            },
-                            get issuerUri(): string {
-                                throw new Error(getAccessErrorMessage("issuerUri"));
-                            },
-                            get validRedirectUri(): string {
-                                throw new Error(getAccessErrorMessage("validRedirectUri"));
-                            },
-                            login: async () => {
-                                alert(
-                                    "Authentication is currently unavailable. Please try again later."
-                                );
-                                return new Promise<never>(() => {});
-                            },
-                            initializationError: ctx.initializationError
+                        oidc: initializationFailed({
+                            initializationError: ctx.initializationError,
+                            config: ctx.config
                         })
                     };
                 }
@@ -602,25 +630,9 @@ export function createUtils<User>(params: {
 
             const oidc = (() => {
                 if (!ctx.doWeHaveTheOidcObject) {
-                    const getAccessErrorMessage = (propertyName: string) =>
-                        `oidc-spa: Cannot read oidc.${propertyName} because OIDC initialization failed before a client was available. Check oidc.initializationError before accessing provider configuration.`;
-
-                    return id<Oidc.NotLoggedIn>({
-                        isUserLoggedIn: false,
-                        get clientId(): string {
-                            throw new Error(getAccessErrorMessage("clientId"));
-                        },
-                        get issuerUri(): string {
-                            throw new Error(getAccessErrorMessage("issuerUri"));
-                        },
-                        get validRedirectUri(): string {
-                            throw new Error(getAccessErrorMessage("validRedirectUri"));
-                        },
-                        login: async () => {
-                            alert("Authentication is currently unavailable. Please try again later.");
-                            return new Promise<never>(() => {});
-                        },
-                        initializationError: ctx.initializationError
+                    return initializationFailed({
+                        initializationError: ctx.initializationError,
+                        config: ctx.config
                     });
                 }
                 return ctx.oidc;
