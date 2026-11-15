@@ -44,9 +44,8 @@ export const router = createRouter({
 
 router.beforeEach(async to => {
     if (to.meta.requiresAuth) {
-        const toHref = new URL(router.resolve(to).href, location.origin).href;
         try {
-            await enforceLogin(toHref);
+            await enforceLogin(to);
         } catch {
             return { name: "authentication-error" };
         }

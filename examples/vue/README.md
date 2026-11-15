@@ -49,7 +49,7 @@ in the frontend; introspection secrets and KV credentials stay on the server.
 `src/oidc.ts` defines the application user and runtime configuration through
 `oidcSpa.withUser(...).withRuntimeConfigs(...).createUtils()`, matching the React
 adapter's builder. It exports `useOidc`, `getOidc`, `OidcInitializationGate`,
-`enforceLogin`, and `withLoginEnforced`.
+and `enforceLogin`.
 
 -   `App.vue` wraps the header and router view in `OidcInitializationGate`. Its default
     slot mounts after both the client and initial user are ready. A `#fallback` slot
@@ -67,16 +67,11 @@ useOidc()`. Templates can then use `isUserLoggedIn && user.canSeeAdminNavigation
     logged-in and logged-out button components using the corresponding assertions.
 -   `getOidc()` provides the asynchronous core API outside components. It can also be
     called from `createUser()` to fetch an access token while the user is being built.
--   `enforceLogin(toHref)` is called by the global navigation guard for routes with
-    `meta.requiresAuth`. The router resolves a fully qualified destination URL,
-    including the application base path. Initialization failures throw
+-   `enforceLogin(to)` is called by the global navigation guard for routes with
+    `meta.requiresAuth`. It accepts the destination route directly. Initialization failures throw
     `OidcInitializationError`; the guard catches that type and redirects to the public
     `/authentication-error` page, which reads `initializationError` through `useOidc()`.
     Unexpected errors propagate to Vue Router's error handling.
--   `withLoginEnforced({ component, errorComponent })` is available as an alternative
-    for component-level protection. It renders a custom or default error component
-    when authentication failed, initiates login when necessary, and forwards props,
-    attributes, events, and slots to the protected component.
 -   `fetchWithAuth()` attaches a current access token to REST requests.
     `src/trpc.ts` obtains tokens through the same `getOidc()` for its header callback.
 

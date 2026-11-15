@@ -1,12 +1,9 @@
 import {
     defineComponent,
-    h,
     onMounted,
     shallowRef,
     shallowReadonly,
     triggerRef,
-    type Component,
-    type DefineComponent,
     type PropType,
     type SlotsType,
     type VNodeChild
@@ -391,52 +388,6 @@ export function createUtils<User>(params: {
         };
     }
 
-    function withLoginEnforced<Props extends Record<string, unknown>>(params: {
-        component: Component<Props>;
-        errorComponent?: Component<{ oidcInitializationError: OidcInitializationError }>;
-    }): DefineComponent<Props> {
-        const { component: Component, errorComponent: ErrorComponent } = params;
-
-        return defineComponent({
-            name: `${Component.name ?? "Component"}WithLoginEnforced`,
-            inheritAttrs: false,
-            setup(_props, { attrs, slots }) {
-                const oidc = useOidc();
-
-                onMounted(async () => {
-                    if (!oidc.isUserLoggedIn && oidc.initializationError === undefined) {
-                        await oidc.login({ doesCurrentHrefEnforceLogin: true });
-                    }
-                });
-
-                return () => {
-                    if (oidc.isUserLoggedIn) {
-                        return h(Component, attrs as Props, slots);
-                    }
-
-                    const { initializationError } = oidc;
-                    if (initializationError === undefined) {
-                        return null;
-                    }
-
-                    if (ErrorComponent !== undefined) {
-                        return h(ErrorComponent, { oidcInitializationError: initializationError });
-                    }
-
-                    return h("div", { role: "alert" }, [
-                        h("p", "Authentication initialization failed."),
-                        h("pre", { style: { whiteSpace: "pre-wrap" } }, initializationError.message),
-                        h(
-                            "button",
-                            { type: "button", onClick: () => window.location.reload() },
-                            "Reload page"
-                        )
-                    ]);
-                };
-            }
-        }) as unknown as DefineComponent<Props>;
-    }
-
     const OidcInitializationGate = defineComponent({
         name: "OidcInitializationGate",
         props: {
@@ -460,5 +411,5 @@ export function createUtils<User>(params: {
         }
     });
 
-    return { useOidc, getOidc, enforceLogin, withLoginEnforced, OidcInitializationGate };
+    return { useOidc, getOidc, enforceLogin, OidcInitializationGate };
 }

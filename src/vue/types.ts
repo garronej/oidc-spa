@@ -1,4 +1,4 @@
-import type { Component, DefineComponent, ShallowRef, SlotsType, VNodeChild } from "vue";
+import type { DefineComponent, ShallowRef, SlotsType, VNodeChild } from "vue";
 import type {
     OidcInitializationError,
     ParamsOfCreateOidc,
@@ -134,10 +134,6 @@ export type OidcSpaUtils<User> = {
         SlotsType<{ default?: () => VNodeChild; fallback?: () => VNodeChild }>
     >;
     enforceLogin: (to: RouteLocationNormalizedGenericLike) => Promise<void | never>;
-    withLoginEnforced: <Props extends Record<string, unknown>>(params: {
-        component: Component<Props>;
-        errorComponent?: Component<{ oidcInitializationError: OidcInitializationError }>;
-    }) => DefineComponent<Props>;
 };
 
 export type RouteLocationNormalizedGenericLike = {

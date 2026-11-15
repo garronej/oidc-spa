@@ -160,7 +160,7 @@ function loggedOut(login = () => new Promise(() => {})) {
     };
 }
 
-test("Vue export has the React utilities and no React runtime dependency", () => {
+test("Vue export exposes router-based utilities without a React runtime dependency", () => {
     for (const path of Object.keys(metafile.inputs)) {
         assert.doesNotMatch(path, /react|angular|tanstack/);
     }
@@ -173,8 +173,7 @@ test("Vue export has the React utilities and no React runtime dependency", () =>
         "OidcInitializationGate",
         "enforceLogin",
         "getOidc",
-        "useOidc",
-        "withLoginEnforced"
+        "useOidc"
     ]);
     assert.throws(() => utils.useOidc(), /OidcInitializationGate/);
 });
@@ -267,7 +266,7 @@ test("configuration failures render public content and throw from enforceLogin",
     assert.equal(oidc.clientId, "not-resolved-yet");
     assert.equal(oidc.validRedirectUri, "https://app.test/app/");
     assert.throws(() => utils.useOidc({ assert: "user logged in" }), /logic error/);
-    await assert.rejects(utils.enforceLogin("https://app.test/app/account"), error => {
+    await assert.rejects(utils.enforceLogin({ fullPath: "https://app.test/app/account" }), error => {
         assert.equal(error, oidc.initializationError);
         return true;
     });
@@ -344,7 +343,7 @@ test("a client with an already cached user populates the Vue ref", async () => {
         .withUser(() => ({}))
         .withRuntimeConfigs(realConfigs)
         .createUtils();
-    await utils.enforceLogin("https://app.test/app/");
+    await utils.enforceLogin({ fullPath: "https://app.test/app/" });
     assert.equal(utils.useOidc({ assert: "user logged in" }).user.value, user);
 });
 
@@ -360,7 +359,7 @@ test("a failed user factory cannot pass a protected route guard", async () => {
     await flush();
     const oidc = utils.useOidc({ assert: "user not logged in" });
     assert(oidc.initializationError instanceof OidcInitializationError);
-    await assert.rejects(utils.enforceLogin("https://app.test/app/account"), error => {
+    await assert.rejects(utils.enforceLogin({ fullPath: "https://app.test/app/account" }), error => {
         assert.equal(error, oidc.initializationError);
         return true;
     });
@@ -410,7 +409,7 @@ for (const issuerUri of ["/realms/demo/", "https://auth.test/realms/demo/"]) {
         );
         assert.equal(app.errors.length, 0);
         await assert.rejects(
-            utils.enforceLogin("https://app.test/app/account"),
+            utils.enforceLogin({ fullPath: "https://app.test/app/account" }),
             error => error === failure
         );
         app.unmount();
@@ -431,124 +430,18 @@ test("logged-out guards redirect to the resolved destination and stay pending", 
         .withRuntimeConfigs(realConfigs)
         .createUtils();
     let completed = false;
-    void utils.enforceLogin("https://app.test/app/#/account?tab=profile").then(() => (completed = true));
+    void utils
+        .enforceLogin({ fullPath: "https://app.test/app/#/account?tab=profile" })
+        .then(() => (completed = true));
     await flush();
     assert.equal(completed, false);
     assert.equal(calls[0].returnToUrl, "https://app.test/app/#/account?tab=profile");
     assert.equal(calls[0].doesCurrentHrefEnforceLogin, false);
-    void utils.enforceLogin("https://app.test/app/");
+    void utils.enforceLogin({ fullPath: "https://app.test/app/" });
     await flush();
     assert.equal(calls[1].doesCurrentHrefEnforceLogin, true);
     void utils.useOidc().login({});
     assert.equal(calls[2].doesCurrentHrefEnforceLogin, false);
-});
-
-test("withLoginEnforced renders custom/default errors and never mounts protected content", async () => {
-    const { oidcSpa, OidcInitializationError } = load();
-    const failure = new OidcInitializationError({
-        isAuthServerLikelyDown: true,
-        messageOrCause: "provider unavailable"
-    });
-    const utils = oidcSpa
-        .withUser(() => ({}))
-        .withRuntimeConfigs(() => {
-            throw failure;
-        })
-        .createUtils();
-    let received;
-    const Protected = defineComponent({
-        setup() {
-            assert.fail("protected content mounted");
-        }
-    });
-    const CustomError = defineComponent({
-        props: ["oidcInitializationError"],
-        setup(props) {
-            received = props.oidcInitializationError;
-            return () => "Custom error";
-        }
-    });
-    const Wrapped = utils.withLoginEnforced({ component: Protected, errorComponent: CustomError });
-    const Default = utils.withLoginEnforced({ component: Protected });
-    const app = mount(() =>
-        h(utils.OidcInitializationGate, null, {
-            default: () => [h(Wrapped), h(Default)]
-        })
-    );
-    await flush();
-    assert.equal(received, utils.useOidc().initializationError);
-    assert.match(text(app.root), /Custom errorAuthentication initialization failed/);
-    assert.match(text(app.root), /Reload page/);
-    assert.equal(app.errors.length, 0);
-    app.unmount();
-});
-
-test("withLoginEnforced forwards props, attributes, events and slots", async () => {
-    const { oidcSpa } = load();
-    const utils = oidcSpa
-        .withUser(() => ({}))
-        .withRuntimeConfigs({ mode: "mock" })
-        .createUtils();
-    let receivedProps;
-    let emitted;
-    const Component = defineComponent({
-        props: { label: { type: String, required: true } },
-        emits: ["select"],
-        setup(props, { slots, emit }) {
-            receivedProps = props;
-            emit("select", "selected");
-            return () => h("button", slots.default?.());
-        }
-    });
-    const Wrapped = utils.withLoginEnforced({ component: Component });
-    const app = mount(() =>
-        h(utils.OidcInitializationGate, null, {
-            default: () =>
-                h(
-                    Wrapped,
-                    { label: "Account", id: "account", onSelect: value => (emitted = value) },
-                    {
-                        default: () => "Slot content"
-                    }
-                )
-        })
-    );
-    await flush();
-    assert.equal(receivedProps.label, "Account");
-    assert.equal(emitted, "selected");
-    assert.equal(text(app.root), "Slot content");
-    const findButton = node =>
-        node.type === "button" ? node : node.children?.map(findButton).find(Boolean);
-    assert.equal(findButton(app.root).props.id, "account");
-    app.unmount();
-});
-
-test("withLoginEnforced starts login once and does not mount protected content while redirecting", async () => {
-    const calls = [];
-    const { oidcSpa } = load({
-        createOidc: () =>
-            loggedOut(params => {
-                calls.push(params);
-                return new Promise(() => {});
-            })
-    });
-    const utils = oidcSpa
-        .withUser(() => ({}))
-        .withRuntimeConfigs(realConfigs)
-        .createUtils();
-    const Wrapped = utils.withLoginEnforced({
-        component: defineComponent({
-            setup() {
-                assert.fail("must not mount protected content");
-            }
-        })
-    });
-    const app = mount(() => h(utils.OidcInitializationGate, null, { default: () => h(Wrapped) }));
-    await flush();
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].doesCurrentHrefEnforceLogin, true);
-    assert.equal(app.errors.length, 0);
-    app.unmount();
 });
 
 test("auto-logout refs update consumers; pending navigation token redirects match React", async () => {
@@ -608,7 +501,7 @@ test("auto-logout refs update consumers; pending navigation token redirects matc
     assert.equal(utils.useOidc().autoLogoutState.value, state);
     const oidc = await utils.getOidc();
     const originalPushState = history.pushState;
-    await utils.enforceLogin("https://app.test/app/account?tab=profile");
+    await utils.enforceLogin({ fullPath: "https://app.test/app/account?tab=profile" });
     assert.equal(await oidc.getAccessToken({ doForceRefresh: true }), "token");
     assert.equal(tokenCalls.at(-1).returnToUrl, "https://app.test/app/account?tab=profile");
     await oidc.getAccessToken({ doForceRefresh: true, returnToUrl: "https://app.test/app/explicit" });
@@ -618,7 +511,7 @@ test("auto-logout refs update consumers; pending navigation token redirects matc
     assert.equal(listeners.size, 0);
     await oidc.getTokens({ doForceRefresh: true });
     assert.equal(tokenCalls.at(-1).returnToUrl, undefined);
-    await utils.enforceLogin("https://app.test/app/other");
+    await utils.enforceLogin({ fullPath: "https://app.test/app/other" });
     listeners.get("popstate")();
     assert.equal(history.pushState, originalPushState);
     app.unmount();
@@ -643,7 +536,10 @@ test("unexpected errors propagate to Vue's component error handler and route gua
     );
     await flush();
     assert.equal(app.errors[0], failure);
-    await assert.rejects(utils.enforceLogin("https://app.test/app/account"), error => error === failure);
+    await assert.rejects(
+        utils.enforceLogin({ fullPath: "https://app.test/app/account" }),
+        error => error === failure
+    );
     app.unmount();
 });
 
@@ -656,7 +552,7 @@ test("server imports and reads never initialize browser authentication", async (
     assert.throws(() => utils.useOidc(), /SSR/);
     await assert.rejects(utils.getOidc(), /can't be used on the server/);
     await assert.rejects(
-        utils.enforceLogin("https://app.test/app/account"),
+        utils.enforceLogin({ fullPath: "https://app.test/app/account" }),
         /cannot be used on the server/
     );
     const markup = await renderToString(

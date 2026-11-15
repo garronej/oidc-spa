@@ -74,37 +74,21 @@ export async function checkTypes() {
     assert<Equals<typeof anonymous.isUserLoggedIn, false>>;
     anonymous.login({});
 
-    await utils.enforceLogin("https://app.test/account");
-    // @ts-expect-error the router must resolve a URL, not pass its route object
-    utils.enforceLogin({ fullPath: "/account" });
+    await utils.enforceLogin({ fullPath: "/account" });
+    // @ts-expect-error pass the route object, not a URL string
+    utils.enforceLogin("https://app.test/account");
 
     const Account = defineComponent({
         props: { label: { type: String, required: true } },
         setup: props => () => h("p", props.label)
     });
-    const ErrorComponent = defineComponent({
-        props: {
-            oidcInitializationError: { type: OidcInitializationError, required: true }
-        },
-        setup: props => () => h("p", props.oidcInitializationError.message)
-    });
-    const Wrapped = utils.withLoginEnforced({ component: Account, errorComponent: ErrorComponent });
-    type WrappedProps = InstanceType<typeof Wrapped>["$props"];
-    const props: WrappedProps = { label: "Account" };
-    void props;
-    // @ts-expect-error required props survive wrapping
-    const missingProps: WrappedProps = {};
-    void missingProps;
-    // @ts-expect-error props keep their original types
-    const invalidProps: WrappedProps = { label: 123 };
-    void invalidProps;
 
     const Gate = utils.OidcInitializationGate;
     type GateProps = InstanceType<typeof Gate>["$props"];
     const gateProps: GateProps = { fallback: "Loading" };
     void gateProps;
     h(Gate, null, {
-        default: (): VNodeChild => h(Wrapped, { label: "Account" }),
+        default: (): VNodeChild => h(Account, { label: "Account" }),
         fallback: (): VNodeChild => "Loading"
     });
 }

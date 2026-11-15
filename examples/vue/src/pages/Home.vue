@@ -78,15 +78,14 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/blob/main/examples/vu
                         <code>src/pages/authenticated/</code> contains protected pages.
                         <code>src/router.ts</code> groups them under a shared layout with
                         <code>meta.requiresAuth</code>. Its navigation guard calls the
-                        <code>enforceLogin()</code> helper with the destination URL before a protected
+                        <code>enforceLogin()</code> helper with the destination route before a protected
                         page mounts. It catches initialization errors and redirects to a public
                         authentication error page. The layout displays the inactivity warning; home,
                         authentication errors, and inactivity logout remain public.
                     </p>
                     <pre><code>router.beforeEach(async to =&gt; {
     if (to.meta.requiresAuth) {
-        const toHref = new URL(router.resolve(to).href, location.origin).href;
-        const error = await enforceLogin(toHref).catch((error: unknown) =&gt; {
+        const error = await enforceLogin(to).catch((error: unknown) =&gt; {
             if (error instanceof OidcInitializationError) return error;
             throw error;
         });
