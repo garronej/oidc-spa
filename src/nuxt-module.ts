@@ -7,6 +7,13 @@ export default defineNuxtModule<OidcSpaVitePluginParams>().with({
         configKey: "oidcSpa"
     },
     setup(options, nuxt) {
+        if (nuxt.options.ssr !== false) {
+            throw new Error(
+                "oidc-spa/nuxt-module currently requires SSR to be disabled. " +
+                    "Set `ssr: false` in your nuxt.config.ts."
+            );
+        }
+
         // Shared Vite builds require global registration so the plugin's config hooks run.
         // Its applyToEnvironment hook selects the client; legacy builds register it there directly.
         addVitePlugin(() => oidcSpa(options), {

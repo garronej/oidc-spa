@@ -1,7 +1,7 @@
 export default defineNuxtConfig({
     compatibilityDate: "2026-11-15",
     devtools: { enabled: true },
-    ssr: true,
+    ssr: false,
     modules: ["oidc-spa/nuxt-module"],
     oidcSpa: {
         browserRuntimeFreeze: { enabled: true },

@@ -7,10 +7,10 @@ the official Nuxt CLI:
 npm create nuxt@latest examples/nuxt -- --template v4 --no-install --no-gitInit --packageManager yarn
 ```
 
-It uses `oidc-spa/vue` and `oidc-spa/nuxt-module`. The example keeps
-`ssr: true` and places `OidcInitializationGate` at the root, around the header,
-layouts, and pages. Nuxt renders the loading fallback on the server and during the
-first client render. Page components mount in the browser after initialization.
+It uses `oidc-spa/vue` and `oidc-spa/nuxt-module`, which currently requires
+`ssr: false` in `nuxt.config.ts`. The example places `OidcInitializationGate` at the
+root, around the header, layouts, and pages. Page components mount in the browser
+after authentication initialization.
 
 ## Run locally
 
@@ -55,13 +55,13 @@ buttons use the same asserted calls as the React example.
 Protected pages live under `app/pages/(authenticated)/`, which adds no URL segment.
 They declare `requiresAuth: true` and use the authenticated layout for the inactivity
 warning. `app/middleware/auth.global.ts` runs login enforcement in the browser and
-redirects initialization failures to the error page. During SSR it allows Nuxt to
-render the root gate's fallback, without attempting browser authentication.
+redirects initialization failures to the error page.
 
 `nuxt.config.ts` registers `oidc-spa/nuxt-module` in `modules` and configures it through
 `oidcSpa`. The module installs the existing Vite plugin, which performs early callback
 handling before Nuxt starts and enables browser runtime protection and DPoP. The
-bootstrap runs only in the client build, with SSR remaining enabled.
+bootstrap runs only in the client build. The module rejects configurations with SSR
+enabled and requires you to explicitly set `ssr: false`.
 
 ## Backend
 

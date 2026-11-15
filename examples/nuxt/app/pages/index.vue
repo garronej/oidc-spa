@@ -10,8 +10,9 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/tree/main/examples/nu
             pages and API. The API validates access tokens and stores todos for each user.
         </p>
         <p class="guide-note">
-            Authentication uses <code>oidc-spa/vue</code> directly. SSR stays enabled, with
-            <code>OidcInitializationGate</code> at the root of the application.
+            Authentication uses <code>oidc-spa/vue</code> directly. The Nuxt module currently requires
+            <code>ssr: false</code>, with <code>OidcInitializationGate</code> at the root of the
+            application.
         </p>
         <div class="example-links">
             <NuxtLink to="/todo-list">
@@ -34,8 +35,8 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/tree/main/examples/nu
                         installs the Vite plugin with DPoP and browser runtime protection enabled. It
                         processes authentication callbacks before Nuxt starts.
                         <code>app/app.vue</code> wraps the header, layouts, and pages in
-                        <code>OidcInitializationGate</code>. The server renders the loading fallback, and
-                        the browser mounts the application after authentication initialization finishes.
+                        <code>OidcInitializationGate</code>, which waits for authentication
+                        initialization before displaying its children.
                     </p>
                 </li>
                 <li>
@@ -55,8 +56,7 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/tree/main/examples/nu
                         <code>requiresAuth: true</code>. The route group adds no URL segment.
                         <code>app/middleware/auth.global.ts</code> calls <code>enforceLogin()</code>
                         with the router's fully resolved destination. Initialization failures redirect to
-                        a public error page. On the server, the middleware lets the root gate render its
-                        fallback.
+                        a public error page.
                     </p>
                 </li>
                 <li>
