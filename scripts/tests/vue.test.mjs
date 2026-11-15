@@ -367,6 +367,54 @@ test("a failed user factory cannot pass a protected route guard", async () => {
     app.unmount();
 });
 
+for (const fullPath of ["/", "/account?tab=profile#details"]) {
+    test(`route protection waits for user creation without a mounted gate: ${fullPath}`, async () => {
+        const { oidcSpa } = load();
+        let finishUser;
+        const pendingUser = new Promise(resolve => (finishUser = resolve));
+        let token;
+        const user = { name: "Alice" };
+        const utils = oidcSpa
+            .withUser(async () => {
+                const oidc = await utils.getOidc({ assert: "user logged in" });
+                token = await oidc.getAccessToken();
+                await pendingUser;
+                return user;
+            })
+            .withRuntimeConfigs({ mode: "mock" })
+            .createUtils();
+        let activated = false;
+        const guard = utils.enforceLogin({ fullPath }).then(() => (activated = true));
+        await flush();
+        assert.equal(token, "mocked-access-token");
+        assert.equal(activated, false);
+        assert.throws(() => utils.useOidc(), /initialization is not complete/);
+        finishUser();
+        await guard;
+        assert.equal(activated, true);
+        assert.equal(utils.useOidc({ assert: "user logged in" }).user.value, user);
+    });
+
+    test(`route protection throws user-creation errors without a mounted gate: ${fullPath}`, async () => {
+        const { oidcSpa, OidcInitializationError } = load();
+        const cause = new Error("profile unavailable");
+        const utils = oidcSpa
+            .withUser(() => {
+                throw cause;
+            })
+            .withRuntimeConfigs({ mode: "mock" })
+            .createUtils();
+        let failure;
+        await assert.rejects(utils.enforceLogin({ fullPath }), error => {
+            failure = error;
+            return error instanceof OidcInitializationError && error.message.includes(cause.message);
+        });
+        assert.equal(utils.useOidc({ assert: "user not logged in" }).initializationError, failure);
+        const oidc = await utils.getOidc({ assert: "user logged in" });
+        assert.equal(await oidc.getAccessToken(), "mocked-access-token");
+    });
+}
+
 for (const issuerUri of ["/realms/demo/", "https://auth.test/realms/demo/"]) {
     test(`Vue exposes failed client metadata without obscuring the error: ${issuerUri}`, async () => {
         let failure;
@@ -416,7 +464,7 @@ for (const issuerUri of ["/realms/demo/", "https://auth.test/realms/demo/"]) {
     });
 }
 
-test("logged-out guards redirect to the resolved destination and stay pending", async () => {
+test("logged-out guards preserve the base path, query and fragment and stay pending", async () => {
     const calls = [];
     const { oidcSpa } = load({
         createOidc: () =>
@@ -430,14 +478,12 @@ test("logged-out guards redirect to the resolved destination and stay pending", 
         .withRuntimeConfigs(realConfigs)
         .createUtils();
     let completed = false;
-    void utils
-        .enforceLogin({ fullPath: "https://app.test/app/#/account?tab=profile" })
-        .then(() => (completed = true));
+    void utils.enforceLogin({ fullPath: "/account?tab=profile#details" }).then(() => (completed = true));
     await flush();
     assert.equal(completed, false);
-    assert.equal(calls[0].returnToUrl, "https://app.test/app/#/account?tab=profile");
+    assert.equal(calls[0].returnToUrl, "https://app.test/app/account?tab=profile#details");
     assert.equal(calls[0].doesCurrentHrefEnforceLogin, false);
-    void utils.enforceLogin({ fullPath: "https://app.test/app/" });
+    void utils.enforceLogin({ fullPath: "/" });
     await flush();
     assert.equal(calls[1].doesCurrentHrefEnforceLogin, true);
     void utils.useOidc().login({});
@@ -517,31 +563,80 @@ test("auto-logout refs update consumers; pending navigation token redirects matc
     app.unmount();
 });
 
-test("unexpected errors propagate to Vue's component error handler and route guards", async () => {
-    const failure = new Error("unexpected failure");
+test("token requests preserve the pending destination while the guard waits for user creation", async () => {
+    let finishUser;
+    let publishUser;
+    const pendingUser = new Promise(resolve => (finishUser = resolve));
+    const tokenCalls = [];
+    const user = { name: "Alice" };
     const { oidcSpa } = load({
-        createOidc: () => {
-            throw failure;
-        }
+        createOidc: () => ({
+            ...loggedOut(),
+            isUserLoggedIn: true,
+            subscribeToAutoLogoutState: () => ({ unsubscribeFromAutoLogoutState() {} }),
+            subscribeToUserChange: callback => {
+                publishUser = callback;
+                return { unsubscribeFromUserChange() {} };
+            },
+            getUser: async () => {
+                const oidc = await utils.getOidc({ assert: "user logged in" });
+                await oidc.getAccessToken({ doForceRefresh: true });
+                await pendingUser;
+                publishUser({ user });
+                return user;
+            },
+            getTokens: async params => {
+                tokenCalls.push(params);
+                return { accessToken: "token" };
+            }
+        })
     });
     const utils = oidcSpa
-        .withUser(() => ({}))
+        .withUser(() => user)
         .withRuntimeConfigs(realConfigs)
         .createUtils();
-    const app = mount(() =>
-        h(utils.OidcInitializationGate, null, {
-            default: () => assert.fail("must not mount"),
-            fallback: () => "Loading"
-        })
-    );
+    const guard = utils.enforceLogin({ fullPath: "/account?tab=profile#details" });
     await flush();
-    assert.equal(app.errors[0], failure);
-    await assert.rejects(
-        utils.enforceLogin({ fullPath: "https://app.test/app/account" }),
-        error => error === failure
-    );
-    app.unmount();
+    assert.throws(() => utils.useOidc(), /initialization is not complete/);
+    assert.equal(tokenCalls[0].returnToUrl, "https://app.test/app/account?tab=profile#details");
+    finishUser();
+    await guard;
+    assert.equal(utils.useOidc({ assert: "user logged in" }).user.value, user);
 });
+
+for (const stage of ["client", "user"]) {
+    test(`unexpected ${stage} errors propagate to Vue's component error handler and route guards`, async () => {
+        const failure = new Error("unexpected failure");
+        const { oidcSpa } = load({
+            createOidc: () => {
+                if (stage === "client") throw failure;
+                return {
+                    ...loggedOut(),
+                    isUserLoggedIn: true,
+                    getUser: async () => {
+                        throw failure;
+                    },
+                    subscribeToUserChange: () => ({ unsubscribeFromUserChange() {} }),
+                    subscribeToAutoLogoutState: () => ({ unsubscribeFromAutoLogoutState() {} })
+                };
+            }
+        });
+        const utils = oidcSpa
+            .withUser(() => ({}))
+            .withRuntimeConfigs(realConfigs)
+            .createUtils();
+        const app = mount(() =>
+            h(utils.OidcInitializationGate, null, {
+                default: () => assert.fail("must not mount"),
+                fallback: () => "Loading"
+            })
+        );
+        await flush();
+        assert.equal(app.errors[0], failure);
+        await assert.rejects(utils.enforceLogin({ fullPath: "/account" }), error => error === failure);
+        app.unmount();
+    });
+}
 
 test("server imports and reads never initialize browser authentication", async () => {
     const { oidcSpa } = load({ browser: false });

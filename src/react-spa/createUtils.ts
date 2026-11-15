@@ -45,58 +45,12 @@ export function createUtils<User>(params: {
 
     const { createUser } = params;
 
-    function initializationFailed(params: {
-        initializationError: OidcInitializationError;
-        config:
-            | {
-                  issuerUri: string;
-                  clientId: string;
-              }
-            | undefined;
-    }): Oidc.NotLoggedIn {
-        const { initializationError, config } = params;
-
-        return {
-            isUserLoggedIn: false,
-            issuerUri:
-                config === undefined
-                    ? "https://not-resolved-yet"
-                    : toFullyQualifiedUrl({
-                          urlish: config.issuerUri,
-                          doAssertNoQueryParams: true,
-                          doOutputWithTrailingSlash: false,
-                          rootUrl_fullyQualified: window.location.origin
-                      }),
-            clientId: config === undefined ? "not-resolved-yet" : config.clientId,
-            get validRedirectUri(): string {
-                return toFullyQualifiedUrl({
-                    urlish: getBASE_URL_earlyInit(),
-                    doAssertNoQueryParams: true,
-                    doOutputWithTrailingSlash: true,
-                    rootUrl_fullyQualified: window.location.origin
-                });
-            },
-            login: async () => {
-                alert("Authentication is currently unavailable. Please try again later.");
-                return new Promise<never>(() => {});
-            },
-            initializationError
-        };
-    }
-
     const dClientCtx = new Deferred<
         | {
-              doWeHaveTheOidcObject: false;
-              initializationError: OidcInitializationError;
-              config: Pick<Oidc.Common, "issuerUri" | "clientId"> | undefined;
-          }
-        | {
-              doWeHaveTheOidcObject: true;
               isUserLoggedIn: false;
               oidc: Oidc.NotLoggedIn;
           }
         | {
-              doWeHaveTheOidcObject: true;
               isUserLoggedIn: true;
               oidc: Oidc.LoggedIn<User>;
               dUser: Deferred<
@@ -113,6 +67,45 @@ export function createUtils<User>(params: {
     >();
 
     const { triggerClientInitializationIfNotAlreadyDone } = (() => {
+        function createOidcNotLoggedInLike(params: {
+            initializationError: OidcInitializationError;
+            config:
+                | {
+                      issuerUri: string;
+                      clientId: string;
+                  }
+                | undefined;
+        }): Oidc.NotLoggedIn {
+            const { initializationError, config } = params;
+
+            return {
+                isUserLoggedIn: false,
+                issuerUri:
+                    config === undefined
+                        ? "https://not-resolved-yet"
+                        : toFullyQualifiedUrl({
+                              urlish: config.issuerUri,
+                              doAssertNoQueryParams: true,
+                              doOutputWithTrailingSlash: false,
+                              rootUrl_fullyQualified: window.location.origin
+                          }),
+                clientId: config === undefined ? "not-resolved-yet" : config.clientId,
+                get validRedirectUri(): string {
+                    return toFullyQualifiedUrl({
+                        urlish: getBASE_URL_earlyInit(),
+                        doAssertNoQueryParams: true,
+                        doOutputWithTrailingSlash: true,
+                        rootUrl_fullyQualified: window.location.origin
+                    });
+                },
+                login: async () => {
+                    alert("Authentication is currently unavailable. Please try again later.");
+                    return new Promise<never>(() => {});
+                },
+                initializationError
+            };
+        }
+
         const d = new Deferred<void>();
 
         d.pr.then(async () => {
@@ -123,15 +116,17 @@ export function createUtils<User>(params: {
                     runtimeConfigs = await getRuntimeConfigs();
                 } catch (error) {
                     dClientCtx.resolve({
-                        doWeHaveTheOidcObject: false,
-                        config: undefined,
-                        initializationError: new OidcInitializationError({
-                            isAuthServerLikelyDown: false,
-                            messageOrCause: new Error(
-                                "Error thrown while evaluating the runtime configs getter on the client",
-                                // @ts-expect-error
-                                { cause: error }
-                            )
+                        isUserLoggedIn: false,
+                        oidc: createOidcNotLoggedInLike({
+                            config: undefined,
+                            initializationError: new OidcInitializationError({
+                                isAuthServerLikelyDown: false,
+                                messageOrCause: new Error(
+                                    "Error thrown while evaluating the runtime configs getter on the client",
+                                    // @ts-expect-error
+                                    { cause: error }
+                                )
+                            })
                         })
                     });
 
@@ -166,7 +161,6 @@ export function createUtils<User>(params: {
 
                         if (!oidc.isUserLoggedIn) {
                             dClientCtx.resolve({
-                                doWeHaveTheOidcObject: true,
                                 isUserLoggedIn: false,
                                 oidc
                             });
@@ -174,7 +168,6 @@ export function createUtils<User>(params: {
                         }
 
                         dClientCtx.resolve({
-                            doWeHaveTheOidcObject: true,
                             isUserLoggedIn: true,
                             oidc,
                             dUser: new Deferred()
@@ -216,12 +209,14 @@ export function createUtils<User>(params: {
                             }
 
                             dClientCtx.resolve({
-                                doWeHaveTheOidcObject: false,
-                                initializationError: error,
-                                config: {
-                                    issuerUri: runtimeConfigs.issuerUri,
-                                    clientId: runtimeConfigs.clientId
-                                }
+                                isUserLoggedIn: false,
+                                oidc: createOidcNotLoggedInLike({
+                                    initializationError: error,
+                                    config: {
+                                        issuerUri: runtimeConfigs.issuerUri,
+                                        clientId: runtimeConfigs.clientId
+                                    }
+                                })
                             });
 
                             break;
@@ -230,14 +225,12 @@ export function createUtils<User>(params: {
                         if (!oidc.isUserLoggedIn) {
                             dClientCtx.resolve({
                                 isUserLoggedIn: false,
-                                doWeHaveTheOidcObject: true,
                                 oidc
                             });
                             break;
                         }
 
                         dClientCtx.resolve({
-                            doWeHaveTheOidcObject: true,
                             isUserLoggedIn: true,
                             oidc,
                             dUser: new Deferred()
@@ -250,10 +243,6 @@ export function createUtils<User>(params: {
                 const { hasResolved, value: ctx } = dClientCtx.getState();
 
                 assert(hasResolved, "49332832");
-
-                if (!ctx.doWeHaveTheOidcObject) {
-                    break resolve_dUser;
-                }
 
                 if (!ctx.isUserLoggedIn) {
                     break resolve_dUser;
@@ -300,15 +289,15 @@ export function createUtils<User>(params: {
         return { triggerClientInitializationIfNotAlreadyDone };
     })();
 
-    const suspencePr = (async () => {
-        const ctx = await dClientCtx.pr;
-
-        if (ctx.doWeHaveTheOidcObject && ctx.isUserLoggedIn) {
-            await ctx.dUser.pr;
-        }
-    })();
-
     const { useOidc } = (() => {
+        const suspensePr = (async () => {
+            const ctx = await dClientCtx.pr;
+
+            if (ctx.isUserLoggedIn) {
+                await ctx.dUser.pr;
+            }
+        })();
+
         const { evtAutoLogoutState } = (() => {
             const evtAutoLogoutState = createStatefulEvt<
                 Oidc_react.LoggedIn<unknown>["autoLogoutState"]
@@ -317,10 +306,6 @@ export function createUtils<User>(params: {
             }));
 
             dClientCtx.pr.then(wrap => {
-                if (!wrap.doWeHaveTheOidcObject) {
-                    return;
-                }
-
                 const { oidc } = wrap;
 
                 if (!oidc.isUserLoggedIn) {
@@ -369,17 +354,7 @@ export function createUtils<User>(params: {
                 const { hasResolved, value: ctx } = dClientCtx.getState();
 
                 if (!hasResolved) {
-                    throw suspencePr;
-                }
-
-                if (!ctx.doWeHaveTheOidcObject) {
-                    return {
-                        isUserLoggedIn: false,
-                        oidc: initializationFailed({
-                            initializationError: ctx.initializationError,
-                            config: ctx.config
-                        })
-                    };
+                    throw suspensePr;
                 }
 
                 if (!ctx.isUserLoggedIn) {
@@ -389,13 +364,13 @@ export function createUtils<User>(params: {
                     };
                 }
 
-                const { hasResolved: hasResolved_user, value: wrap_user } = ctx.dUser.getState();
+                const { hasResolved: hasResolved_user, value: ctx_user } = ctx.dUser.getState();
 
                 if (!hasResolved_user) {
-                    throw suspencePr;
+                    throw suspensePr;
                 }
 
-                if (wrap_user.hasCreateUserThrown) {
+                if (ctx_user.hasCreateUserThrown) {
                     return {
                         isUserLoggedIn: false as const,
                         oidc: id<Oidc.NotLoggedIn>({
@@ -413,7 +388,7 @@ export function createUtils<User>(params: {
                                 window.location.reload();
                                 return new Promise<never>(() => {});
                             },
-                            initializationError: wrap_user.initializationError
+                            initializationError: ctx_user.initializationError
                         })
                     };
                 }
@@ -421,7 +396,7 @@ export function createUtils<User>(params: {
                 return {
                     isUserLoggedIn: true as const,
                     oidc: ctx.oidc,
-                    evtUser: wrap_user.evtUser
+                    evtUser: ctx_user.evtUser
                 };
             })();
 
@@ -612,7 +587,7 @@ export function createUtils<User>(params: {
         let oidc_cached: Oidc<User> | undefined = undefined;
 
         async function getOidc(params?: {
-            assert?: "user logged in" | "user not logged in" | "init completed";
+            assert?: "user logged in" | "user not logged in";
         }): Promise<Oidc<User>> {
             if (!isBrowser) {
                 throw new Error(
@@ -628,17 +603,7 @@ export function createUtils<User>(params: {
 
             const ctx = await dClientCtx.pr;
 
-            const oidc = (() => {
-                if (!ctx.doWeHaveTheOidcObject) {
-                    return initializationFailed({
-                        initializationError: ctx.initializationError,
-                        config: ctx.config
-                    });
-                }
-                return ctx.oidc;
-            })();
-
-            if (params?.assert === "user logged in" && !oidc.isUserLoggedIn) {
+            if (params?.assert === "user logged in" && !ctx.isUserLoggedIn) {
                 throw new Error(
                     [
                         "oidc-spa: Called getOidc({ assert: 'user logged in' })",
@@ -646,7 +611,7 @@ export function createUtils<User>(params: {
                     ].join(" ")
                 );
             }
-            if (params?.assert === "user not logged in" && oidc.isUserLoggedIn) {
+            if (params?.assert === "user not logged in" && ctx.isUserLoggedIn) {
                 throw new Error(
                     [
                         "oidc-spa: Called getOidc({ assert: 'user not logged in' })",
@@ -660,7 +625,8 @@ export function createUtils<User>(params: {
             }
 
             oidc_cached = (() => {
-                if (oidc.isUserLoggedIn) {
+                if (ctx.oidc.isUserLoggedIn) {
+                    const { oidc } = ctx;
                     const oidc_proxy = id<Oidc.LoggedIn<User>>({
                         ...oidc,
                         getTokens: params => {
@@ -679,7 +645,7 @@ export function createUtils<User>(params: {
                     });
                     return oidc_proxy;
                 } else {
-                    return oidc;
+                    return ctx.oidc;
                 }
             })();
 
@@ -712,9 +678,11 @@ export function createUtils<User>(params: {
                       loaderContext
                   };
 
-        const oidc = await getOidc();
+        triggerClientInitializationIfNotAlreadyDone();
 
-        if (!oidc.isUserLoggedIn) {
+        const ctx = await dClientCtx.pr;
+
+        if (!ctx.isUserLoggedIn) {
             if (
                 loaderContext_discriminated.routingLibrary === "TanStack Router" &&
                 loaderContext_discriminated.loaderContext.cause === "preload"
@@ -728,8 +696,8 @@ export function createUtils<User>(params: {
                 );
             }
 
-            if (oidc.initializationError !== undefined) {
-                throw oidc.initializationError;
+            if (ctx.oidc.initializationError !== undefined) {
+                throw ctx.oidc.initializationError;
             }
         }
 
@@ -739,7 +707,7 @@ export function createUtils<User>(params: {
                     return toFullyQualifiedUrl({
                         urlish: loaderContext_discriminated.loaderContext.location.href,
                         doAssertNoQueryParams: false,
-                        rootUrl_fullyQualified: oidc.validRedirectUri
+                        rootUrl_fullyQualified: ctx.oidc.validRedirectUri
                     });
                 case "React Router":
                     return loaderContext_discriminated.loaderContext.request.url;
@@ -751,11 +719,12 @@ export function createUtils<User>(params: {
         const isUrlAlreadyReplaced =
             window.location.href.replace(/\/$/, "") === returnToUrl.replace(/\/$/, "");
 
-        if (!oidc.isUserLoggedIn) {
-            await oidc.login({
+        if (!ctx.isUserLoggedIn) {
+            await ctx.oidc.login({
                 returnToUrl,
                 doesCurrentHrefEnforceLogin: isUrlAlreadyReplaced
             });
+            assert(false, "333203");
         }
 
         set_returnToUrl_getTokens: {
@@ -783,6 +752,14 @@ export function createUtils<User>(params: {
                 onNavigated();
                 return history_replaceState.call(history, ...args);
             };
+        }
+
+        {
+            const ctx_user = await ctx.dUser.pr;
+
+            if (ctx_user.hasCreateUserThrown) {
+                throw ctx_user.initializationError;
+            }
         }
     }
 
@@ -850,7 +827,7 @@ export function createUtils<User>(params: {
                     return;
                 }
 
-                if (ctx.doWeHaveTheOidcObject && ctx.isUserLoggedIn) {
+                if (ctx.isUserLoggedIn) {
                     await ctx.dUser.pr;
                     if (!isActive) {
                         return;
