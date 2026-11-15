@@ -256,9 +256,17 @@ for (const asynchronous of [false, true]) {
         await assert.rejects(utils.enforceLogin(navigation()), e => e === error);
         assert.equal(f.record.login.length, 0);
         assert.equal(f.record.coreCalls, 0);
-        assert.equal(f.render(utils.useOidc).initializationError, undefined);
+        const initialState = f.render(utils.useOidc);
+        assert.equal(initialState.isOidcReady, false);
+        assert.equal(initialState.initializationError, undefined);
         f.commit();
-        assert.equal(f.render(utils.useOidc).initializationError, error);
+        const state = f.render(utils.useOidc);
+        assert.equal(state.isOidcReady, true);
+        assert.equal(state.isUserLoggedIn, false);
+        assert.equal(state.initializationError, error);
+        assert.equal(state.issuerUri, oidc.issuerUri);
+        assert.equal(state.clientId, oidc.clientId);
+        assert.equal(state.validRedirectUri, oidc.validRedirectUri);
         assert.throws(
             () => f.render(utils.useOidc, { assert: "user logged in" }),
             e => e === error
@@ -331,9 +339,15 @@ for (const adapter of ["react-spa", "tanstack-start"]) {
                 assert.equal(state.clientId, oidc.clientId);
                 assert.equal(state.initializationError, error);
             } else {
-                f.render(utils.useOidc);
-                f.commit();
                 assert.equal(f.render(utils.useOidc).isOidcReady, false);
+                f.commit();
+                const state = f.render(utils.useOidc);
+                assert.equal(state.isOidcReady, true);
+                assert.equal(state.isUserLoggedIn, false);
+                assert.equal(state.issuerUri, oidc.issuerUri);
+                assert.equal(state.clientId, oidc.clientId);
+                assert.equal(state.validRedirectUri, oidc.validRedirectUri);
+                assert.equal(state.initializationError, error);
             }
             await assert.rejects(enforceLogin(utils), e => e === error);
         });
@@ -381,59 +395,77 @@ test("logged-out preloads do not start login; navigation preserves its destinati
     assert.equal(f.record.login[0].doesCurrentHrefEnforceLogin, false);
 });
 
-test("page protection waits for user construction and preserves imperative token access", async () => {
-    const f = fixture();
-    const user = deferred();
-    const utils = f.createUtils(async () => {
+for (const href of ["/public", "/private?tab=profile#details"]) {
+    test(`page protection waits for user construction and preserves imperative token access: ${href}`, async () => {
+        const f = fixture();
+        const user = deferred();
+        const utils = f.createUtils(async () => {
+            const oidc = await utils.getOidc({ assert: "user logged in" });
+            assert.equal(await oidc.getAccessToken({ scopes: ["email"] }), "access-token");
+            return user.promise;
+        });
+        let activated = false;
+        const guard = utils.enforceLogin({ ...navigation(), location: { href } }).then(() => {
+            activated = true;
+        });
         const oidc = await utils.getOidc({ assert: "user logged in" });
-        assert.equal(await oidc.getAccessToken(), "access-token");
-        return user.promise;
+        await tick();
+        assert.equal(activated, false);
+        await oidc.getTokens({ scopes: ["email"] });
+        const expectedReturnToUrl = href === "/public" ? undefined : `https://app.test${href}`;
+        assert.equal(f.record.tokens[0].returnToUrl, expectedReturnToUrl);
+        assert.equal(f.record.tokens.at(-1).returnToUrl, expectedReturnToUrl);
+        user.resolve({ displayName: "Alice" });
+        await guard;
+        assert.equal(activated, true);
+        assert.equal(f.render(utils.useOidc).isOidcReady, false);
+        f.commit();
+        const state = f.render(utils.useOidc);
+        assert.equal(state.isOidcReady, true);
+        assert.equal(state.user.displayName, "Alice");
+        f.history.pushState();
+        await oidc.getTokens({ scopes: ["email"] });
+        assert.equal(f.record.tokens.at(-1).returnToUrl, undefined);
     });
-    let activated = false;
-    const guard = utils.enforceLogin(navigation()).then(() => {
-        activated = true;
-    });
-    const oidc = await utils.getOidc({ assert: "user logged in" });
-    await tick();
-    assert.equal(activated, false);
-    await oidc.getTokens({ scopes: ["email"] });
-    assert.equal(f.record.tokens.at(-1).returnToUrl, "https://app.test/private?tab=profile#details");
-    user.resolve({ displayName: "Alice" });
-    await guard;
-    assert.equal(activated, true);
-    assert.equal(f.render(utils.useOidc).isOidcReady, false);
-    f.commit();
-    const state = f.render(utils.useOidc);
-    assert.equal(state.isOidcReady, true);
-    assert.equal(state.user.displayName, "Alice");
-    f.history.pushState();
-    await oidc.getTokens({ scopes: ["email"] });
-    assert.equal(f.record.tokens.at(-1).returnToUrl, undefined);
-});
 
-test("user-construction errors reach page protection while tokens remain usable", async () => {
-    const f = fixture();
-    const utils = f.createUtils(() => {
-        throw new Error("Profile unavailable");
+    test(`user-construction errors reach page protection while tokens remain usable: ${href}`, async () => {
+        const f = fixture();
+        const user = deferred();
+        const utils = f.createUtils(() => user.promise);
+        let failure;
+        const guard = assert.rejects(
+            utils.enforceLogin({ ...navigation(), location: { href } }),
+            error => {
+                failure = error;
+                return error instanceof f.OidcInitializationError;
+            }
+        );
+        const oidc = await utils.getOidc({ assert: "user logged in" });
+        await tick();
+        assert.equal(f.render(utils.useOidc).isOidcReady, false);
+        f.commit();
+        assert.equal(f.render(utils.useOidc).isOidcReady, false);
+        user.reject(new Error("Profile unavailable"));
+        await guard;
+        const state = f.render(utils.useOidc);
+        assert.equal(state.isOidcReady, true);
+        assert.equal(state.isUserLoggedIn, false);
+        const error = state.initializationError;
+        assert(error instanceof f.OidcInitializationError);
+        assert.equal(error, failure);
+        assert.throws(
+            () => f.render(utils.useOidc, { assert: "user logged in" }),
+            e => e === error
+        );
+        await assert.rejects(
+            utils.enforceLogin({ ...navigation(), location: { href } }),
+            e => e === error
+        );
+        assert.equal(await oidc.getAccessToken(), "access-token");
+        assert.equal(f.record.login.length, 0);
+        assert.equal(f.record.reloads, 0);
     });
-    const oidc = await utils.getOidc({ assert: "user logged in" });
-    await tick();
-    assert.equal(f.render(utils.useOidc).isOidcReady, false);
-    f.commit();
-    const state = f.render(utils.useOidc);
-    assert.equal(state.isOidcReady, true);
-    assert.equal(state.isUserLoggedIn, false);
-    const error = state.initializationError;
-    assert(error instanceof f.OidcInitializationError);
-    assert.throws(
-        () => f.render(utils.useOidc, { assert: "user logged in" }),
-        e => e === error
-    );
-    await assert.rejects(utils.enforceLogin(navigation()), e => e === error);
-    assert.equal(await oidc.getAccessToken(), "access-token");
-    assert.equal(f.record.login.length, 0);
-    assert.equal(f.record.reloads, 0);
-});
+}
 
 test("SSR keeps authentication pending and protected routes retain their client-only marker", async () => {
     const f = fixture({ browser: false });
