@@ -103,7 +103,7 @@ for (const targetFormat of ["cjs", "esm"] as const) {
                                     pathJoin("tools", "inferIsViteDev.ts"),
                                     pathJoin("tools", "getThisCodebaseRootDirPath_esm.ts"),
                                     "vite-plugin",
-                                    "nuxt-spa",
+                                    "nuxt-module.ts",
                                     pathJoin("vendor", "build-runtime")
                                 ];
                             case "esm":

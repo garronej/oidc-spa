@@ -17,7 +17,8 @@ import type {
     CreateClientUser,
     Oidc_vue,
     Oidc,
-    AutoLogoutState
+    AutoLogoutState,
+    RouteLocationNormalizedGenericLike
 } from "./types";
 import { OidcInitializationError } from "../core/OidcInitializationError";
 import { isBrowser } from "../tools/isBrowser";
@@ -332,7 +333,7 @@ export function createUtils<User>(params: {
         return oidc;
     }
 
-    async function enforceLogin(toHref: string): Promise<void | never> {
+    async function enforceLogin(to: RouteLocationNormalizedGenericLike): Promise<void | never> {
         if (!isBrowser) {
             throw new Error("oidc-spa: enforceLogin cannot be used on the server");
         }
@@ -348,7 +349,7 @@ export function createUtils<User>(params: {
         }
 
         // The router supplies its resolved URL, including the history base and hash mode.
-        const returnToUrl = new URL(toHref).href;
+        const returnToUrl = new URL(to.fullPath, oidc.validRedirectUri).href;
         const isUrlAlreadyReplaced =
             window.location.href.replace(/\/$/, "") === returnToUrl.replace(/\/$/, "");
 

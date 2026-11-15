@@ -35,14 +35,10 @@ export const appConfig: ApplicationConfig = {
     ),
     provideOidc(async (): Promise<RuntimeConfigs> => {
       const http = inject(HttpClient);
-      const router = inject(Router);
-      const autoLogout_returnToUrl = () =>
-        router.serializeUrl(
-          router.createUrlTree(['/inactivity-logout'], {
-            queryParams: { return_url: window.location.href },
-          })
-        );
+
       const env = await firstValueFrom(http.get<Record<string, string>>('/api/oidc-client-env'));
+      const autoLogout_returnToUrl = () =>
+        `/inactivity-logout?return_url=${encodeURIComponent(location.href)}`;
 
       switch (env['OIDC_PROVIDER']) {
         case 'mock':

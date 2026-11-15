@@ -53,9 +53,7 @@ export const { useOidc, getOidc, OidcInitializationGate, withLoginEnforced } = o
     })
     .withRuntimeConfigs(async () => {
         const autoLogout_returnToUrl = () =>
-            `${process.env.__NEXT_ROUTER_BASEPATH}/inactivity-logout?${new URLSearchParams({
-                return_url: window.location.href
-            })}`;
+            `/inactivity-logout?return_url=${encodeURIComponent(location.href)}`;
 
         switch (process.env.NEXT_PUBLIC_OIDC_PROVIDER) {
             case "mock":

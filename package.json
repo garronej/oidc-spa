@@ -31,7 +31,7 @@
         "start-tanstack-router-example": "bash ./scripts/start-example.sh tanstack-router dev",
         "start-framework-agnostic-example": "bash ./scripts/start-example.sh framework-agnostic dev",
         "start-vue-example": "bash ./scripts/start-example.sh vue dev",
-        "start-nuxt-spa-example": "bash ./scripts/start-example.sh nuxt-spa dev"
+        "start-nuxt-example": "bash ./scripts/start-example.sh nuxt dev"
     },
     "lint-staged": {
         "*.{ts,tsx,json,md}": [
@@ -191,11 +191,11 @@
             "import": "./dist/esm/vite-plugin/index.mjs",
             "default": "./dist/esm/vite-plugin/index.mjs"
         },
-        "./nuxt-spa": {
-            "types": "./dist/esm/nuxt-spa/index.d.ts",
-            "module": "./dist/esm/nuxt-spa/index.mjs",
-            "import": "./dist/esm/nuxt-spa/index.mjs",
-            "default": "./dist/esm/nuxt-spa/index.mjs"
+        "./nuxt-module": {
+            "types": "./dist/esm/nuxt-module.d.ts",
+            "module": "./dist/esm/nuxt-module.mjs",
+            "import": "./dist/esm/nuxt-module.mjs",
+            "default": "./dist/esm/nuxt-module.mjs"
         },
         "./server": {
             "module": "./dist/esm/server/index.mjs",

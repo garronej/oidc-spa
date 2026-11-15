@@ -170,6 +170,37 @@ for (const project of ["vanilla Vite", "Nuxt"]) {
     });
 }
 
+for (const command of ["serve", "build"]) {
+    for (const optionsKey of ["rollupOptions", "rolldownOptions"]) {
+        test(`Nuxt ${command}: ${optionsKey} selects the client environment entry and leaves SSR alone`, async t => {
+            const f = await fixture(t);
+            const plugin = oidcSpa();
+            callHook(plugin, "configResolved", undefined, {
+                ...f.config,
+                command,
+                plugins: [{ name: "nuxt:environments" }],
+                build: { rollupOptions: { input: f.server } },
+                environments: {
+                    client: { build: { [optionsKey]: { input: { entry: "src/client.tsx" } } } },
+                    ssr: { build: { [optionsKey]: { input: f.client } } }
+                }
+            });
+            assert.equal(callHook(plugin, "applyToEnvironment", undefined, { name: "client" }), true);
+            assert.equal(callHook(plugin, "applyToEnvironment", undefined, { name: "ssr" }), false);
+            assert.equal(callHook(plugin, "applyToEnvironment", undefined, { name: "nitro" }), false);
+            const { context } = pluginContext("client");
+            const source = await callHook(plugin, "load", context, f.client);
+            assert.match(source, /oidcEarlyInit/);
+            assert.match(source, /__NUXT__\.config\.app\.baseURL/);
+            assert.equal(await callHook(plugin, "load", context, f.server), null);
+            assert.equal(
+                await callHook(plugin, "load", context, f.client + "?oidc-spa-original=true"),
+                f.clientSource
+            );
+        });
+    }
+}
+
 test("dependency optimization distinguishes the main and child React Router compilers", () => {
     const main = oidcSpa();
     const mainConfig = {

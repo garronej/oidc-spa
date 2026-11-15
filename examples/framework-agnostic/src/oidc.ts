@@ -51,11 +51,8 @@ export const { getOidc } = oidcSpa
         return user;
     })
     .withRuntimeConfigs(async () => {
-        const autoLogout_returnToUrl = () => {
-            const url = new URL(`${import.meta.env.BASE_URL}inactivity-logout`, window.location.origin);
-            url.searchParams.set("return_url", window.location.href);
-            return url.href;
-        };
+        const autoLogout_returnToUrl = () =>
+            `/inactivity-logout?return_url=${encodeURIComponent(location.href)}`;
 
         switch (import.meta.env.VITE_OIDC_PROVIDER) {
             case "mock":
@@ -165,7 +162,7 @@ export async function enforceLogin(toHref: string): Promise<void> {
 
         await oidc.login({
             returnToUrl: toHref,
-            doesCurrentHrefEnforceLogin: toHref === location.href
+            doesCurrentHrefEnforceLogin: toHref.replace(/\/$/, "") === location.href.replace(/\/$/, "")
         });
     }
 }

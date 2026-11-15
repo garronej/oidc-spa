@@ -52,7 +52,7 @@ export const { useOidc, getOidc, OidcInitializationGate, enforceLogin } = oidcSp
         const autoLogout_returnToUrl = () =>
             router.buildLocation({
                 to: "/inactivity-logout",
-                search: { return_url: window.location.href }
+                search: { return_url: location.href }
             }).href;
 
         switch (import.meta.env.VITE_OIDC_PROVIDER) {

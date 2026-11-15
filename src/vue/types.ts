@@ -133,12 +133,15 @@ export type OidcSpaUtils<User> = {
         {},
         SlotsType<{ default?: () => VNodeChild; fallback?: () => VNodeChild }>
     >;
-    /** Fully qualified destination URL, as resolved by the application's router. */
-    enforceLogin: (toHref: string) => Promise<void | never>;
+    enforceLogin: (to: RouteLocationNormalizedGenericLike) => Promise<void | never>;
     withLoginEnforced: <Props extends Record<string, unknown>>(params: {
         component: Component<Props>;
         errorComponent?: Component<{ oidcInitializationError: OidcInitializationError }>;
     }) => DefineComponent<Props>;
+};
+
+export type RouteLocationNormalizedGenericLike = {
+    fullPath: string;
 };
 
 export type CreateClientUser<User> = (params: {

@@ -6,7 +6,7 @@ import { createSharedHandlers } from "./createSharedHandlers";
 import { createTanstackStartHandlers } from "./tanstack-start/createHandlers";
 import { createReactRouterFrameworkHandlers } from "./react-router-framework/createHandlers";
 import { configureDependencyOptimization } from "./manageOptimizedDeps";
-import { getProjectType } from "./projectType";
+import { getProjectType, type ProjectType } from "./projectType";
 
 export type OidcSpaVitePluginParams = {
     /** See: https://docs.oidc-spa.dev/v/v10/security-features/browser-runtime-freeze */
@@ -35,6 +35,7 @@ export type OidcSpaVitePluginParams = {
 
 export function oidcSpa(params: OidcSpaVitePluginParams = {}) {
     let handlers: Handlers | undefined;
+    let projectType: ProjectType | undefined;
 
     const plugin: Plugin = {
         name: "oidc-spa",
@@ -43,7 +44,7 @@ export function oidcSpa(params: OidcSpaVitePluginParams = {}) {
             return configureDependencyOptimization(userConfig);
         },
         configResolved(resolvedConfig) {
-            const projectType = getProjectType({
+            projectType = getProjectType({
                 pluginNames: resolvedConfig.plugins.map(({ name }) => name)
             });
             const factoryParams = { resolvedConfig, oidcSpaVitePluginParams: params };
@@ -62,6 +63,11 @@ export function oidcSpa(params: OidcSpaVitePluginParams = {}) {
                 default:
                     assert<Equals<typeof projectType, never>>(false);
             }
+        },
+        applyToEnvironment(environment) {
+            // Nuxt can share its entry module between the client and SSR environments.
+            // Only the browser entry should run early initialization.
+            return projectType !== "nuxt" || environment.name === "client";
         },
         resolveId(id, importer, options) {
             assert(handlers !== undefined);

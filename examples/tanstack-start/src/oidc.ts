@@ -95,9 +95,8 @@ export const {
         const autoLogout_returnToUrl = () =>
             router.buildLocation({
                 to: "/inactivity-logout",
-                search: { return_url: window.location.href }
+                search: { return_url: location.href }
             }).href;
-        const warnUserSecondsBeforeAutoLogout = 60 * 4 + 30;
 
         switch (process.env["OIDC_PROVIDER"]) {
             case "mock":
@@ -114,8 +113,7 @@ export const {
                     debugLogs: true,
                     client: {
                         clientId: process.env["KEYCLOAK_CLIENT_ID"],
-                        autoLogout_returnToUrl,
-                        warnUserSecondsBeforeAutoLogout
+                        autoLogout_returnToUrl
                     },
                     server: {
                         accessTokenValidationMethod: "offline JWT validation",
@@ -130,8 +128,7 @@ export const {
                     debugLogs: true,
                     client: {
                         clientId: process.env["KEYCLOAK2_CLIENT_ID"],
-                        autoLogout_returnToUrl,
-                        warnUserSecondsBeforeAutoLogout
+                        autoLogout_returnToUrl
                     },
                     server: {
                         accessTokenValidationMethod: "introspection endpoint",
@@ -153,7 +150,6 @@ export const {
                             process.env["AUTH0_SSO_SESSION_IDLE_SECONDS"]
                         ),
                         autoLogout_returnToUrl,
-                        warnUserSecondsBeforeAutoLogout,
                         // DPoP is only available for paying Auth0 customer.
                         disableDPoP: true
                     },
@@ -170,8 +166,7 @@ export const {
                     client: {
                         clientId: process.env["ENTRA_CLIENT_ID"],
                         scopes: ["profile", process.env["ENTRA_API_SCOPE"]],
-                        autoLogout_returnToUrl,
-                        warnUserSecondsBeforeAutoLogout
+                        autoLogout_returnToUrl
                     },
                     server: {
                         accessTokenValidationMethod: "offline JWT validation",

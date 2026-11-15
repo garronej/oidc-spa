@@ -49,7 +49,7 @@ export const { useOidc, getOidc, OidcInitializationGate, enforceLogin } = oidcSp
     })
     .withRuntimeConfigs(async () => {
         const autoLogout_returnToUrl = () =>
-            `/inactivity-logout?${new URLSearchParams({ return_url: window.location.href })}`;
+            `/inactivity-logout?return_url=${encodeURIComponent(location.href)}`;
 
         switch (import.meta.env.VITE_OIDC_PROVIDER) {
             case "mock":

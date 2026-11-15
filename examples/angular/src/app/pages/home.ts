@@ -138,10 +138,11 @@ import { RouterLink } from '@angular/router';
             <p>
               The protected layout mounts <code>AutoLogoutWarningOverlay</code> to display the
               countdown before automatic logout. In <code>app.config.ts</code>,
-              <code>autoLogout_returnToUrl</code> uses Angular Router to build a URL for the public
+              <code>autoLogout_returnToUrl</code> sends the user to the public
               <a [href]="sourceUrl + '/src/app/pages/inactivity-logout.ts'"
                 >inactivity logout page</a
-              >, saving the previous URL in <code>return_url</code>.
+              >, saving the previous URL in <code>return_url</code> with
+              <code>encodeURIComponent</code>.
             </p>
             <p>
               This page stays visible while logged out. Its “Resume to where I was” link returns to

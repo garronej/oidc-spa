@@ -48,11 +48,8 @@ export const { useOidc, getOidc, OidcInitializationGate, enforceLogin, withLogin
         return user;
     })
     .withRuntimeConfigs(async () => {
-        const autoLogout_returnToUrl = () => {
-            const url = new URL(`${import.meta.env.BASE_URL}inactivity-logout`, window.location.origin);
-            url.searchParams.set("return_url", window.location.href);
-            return url.href;
-        };
+        const autoLogout_returnToUrl = () =>
+            `/inactivity-logout?return_url=${encodeURIComponent(location.href)}`;
 
         switch (import.meta.env.VITE_OIDC_PROVIDER) {
             case "mock":
