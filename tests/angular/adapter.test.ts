@@ -540,6 +540,89 @@ test("guard waits for user and supplies the target URL to parameterized token re
     assert.equal(core.tokenRequests.slice(-1)[0]?.returnToUrl, undefined);
 });
 
+for (const shouldFail of [false, true]) {
+    test(`guard waits for user creation when already at the destination, failure=${shouldFail}`, async t => {
+        const core = resetCore();
+        const previousHref = location.href;
+        const target = "/protected?tab=profile#details";
+        location.href = "https://app.test/base" + target;
+        t.after(() => {
+            location.href = previousHref;
+        });
+        let resolveUser!: (user: string) => void;
+        let rejectUser!: (error: Error) => void;
+        const utils = oidcSpa
+            .withUser(
+                () =>
+                    new Promise<string>((resolve, reject) => {
+                        resolveUser = resolve;
+                        rejectUser = reject;
+                    })
+            )
+            .withNonBlockingRendering()
+            .createUtils();
+        const { injector } = app([
+            utils.provideOidc(params),
+            { provide: Router, useValue: { events: new Subject(), getCurrentNavigation: () => null } }
+        ]);
+        const oidc = runInInjectionContext(injector, () => utils.injectOidc());
+        let settled = false;
+        const guard = runInInjectionContext(injector, () =>
+            utils.enforceLoginGuard(route, routerState(target))
+        );
+        const outcome = guard.then(
+            value => {
+                settled = true;
+                return value;
+            },
+            error => {
+                settled = true;
+                return error;
+            }
+        );
+        core.ready.resolve();
+        await tick();
+        assert.equal(settled, false);
+        const imperative = await utils.getOidc({ assert: "user logged in" });
+        assert.match(await imperative.getAccessToken(), /^access-token-/);
+        if (shouldFail) {
+            const cause = new Error("profile unavailable");
+            rejectUser(cause);
+            const error = await outcome;
+            assert.ok(error instanceof OidcInitializationError);
+            assert.equal(causeOf(error), cause);
+            await oidc.prInitialized;
+            assert.equal(oidc.initializationError, error);
+            assert.equal(oidc.isUserLoggedIn, false);
+        } else {
+            resolveUser("Alice");
+            assert.equal(await outcome, true);
+            await oidc.prInitialized;
+            assert.equal(oidc.user!(), "Alice");
+        }
+        assert.equal(core.loginParams, undefined);
+    });
+}
+
+test("a user cached before the adapter subscribes initializes the user signal", async () => {
+    const core = resetCore();
+    const createOidc = core.createOidc;
+    core.createOidc = async params => {
+        const oidc = await createOidc(params);
+        assert.ok(oidc.isUserLoggedIn);
+        await oidc.getUser();
+        return oidc;
+    };
+    const user = { displayName: "Alice" };
+    const utils = oidcSpa.withUser(() => user).createUtils();
+    const { injector, initialization } = app([utils.provideOidc(params)]);
+    core.ready.resolve();
+    await initialization.donePromise;
+    const oidc = runInInjectionContext(injector, () => utils.injectOidc({ assert: "user logged in" }));
+    assert.equal(oidc.user(), user);
+    assert.equal(await (await utils.getOidc({ assert: "user logged in" })).getUser(), user);
+});
+
 for (const event of [
     new NavigationCancel(1, "/protected", "cancelled", NavigationCancellationCode.GuardRejected),
     new NavigationError(1, "/protected", new Error("navigation failed")),

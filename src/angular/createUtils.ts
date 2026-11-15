@@ -10,7 +10,9 @@ import {
     PLATFORM_ID,
     provideAppInitializer,
     runInInjectionContext,
-    signal
+    signal,
+    type Signal,
+    type WritableSignal
 } from "@angular/core";
 import type { HttpInterceptorFn } from "@angular/common/http";
 import {
@@ -24,6 +26,8 @@ import { defer, finalize, from, switchMap } from "rxjs";
 import type { CreateClientUser, Oidc_angular, Oidc, OidcSpaUtils, RuntimeConfigs } from "./types";
 import { OidcInitializationError } from "../core/OidcInitializationError";
 import { Deferred } from "../tools/Deferred";
+import { assert } from "../tools/tsafe/assert";
+import { id } from "../tools/tsafe/id";
 import type { OptionallyAsyncGetterOrDirectValue } from "../tools/GetterOrDirectValue";
 import { toFullyQualifiedUrl } from "../tools/toFullyQualifiedUrl";
 import { getBASE_URL_earlyInit } from "../core/earlyInit_BASE_URL";
@@ -39,58 +43,34 @@ export function createUtils<User>(params: {
     let dRuntime = new Deferred<Runtime>();
     let activeRuntime: Runtime | undefined;
 
-    function initializationFailed(params: {
-        initializationError: OidcInitializationError;
-        config:
-            | {
-                  issuerUri: string;
-                  clientId: string;
-              }
-            | undefined;
-    }): Oidc.NotLoggedIn {
-        const { initializationError, config } = params;
-
-        return {
-            isUserLoggedIn: false,
-            issuerUri:
-                config === undefined
-                    ? "https://not-resolved-yet"
-                    : toFullyQualifiedUrl({
-                          urlish: config.issuerUri,
-                          doAssertNoQueryParams: true,
-                          doOutputWithTrailingSlash: false,
-                          rootUrl_fullyQualified: window.location.origin
-                      }),
-            clientId: config === undefined ? "not-resolved-yet" : config.clientId,
-            get validRedirectUri(): string {
-                return toFullyQualifiedUrl({
-                    urlish: getBASE_URL_earlyInit(),
-                    doAssertNoQueryParams: true,
-                    doOutputWithTrailingSlash: true,
-                    rootUrl_fullyQualified: window.location.origin
-                });
-            },
-            login: async () => {
-                alert("Authentication is currently unavailable. Please try again later.");
-                return new Promise<never>(() => {});
-            },
-            initializationError
-        };
-    }
-
     function createRuntime() {
         const injector = inject(Injector);
         const destroyRef = inject(DestroyRef);
-        const dClientCtx = new Deferred<Oidc<User> | OidcInitializationError>();
-        const dUser = new Deferred<void>();
+        const dClientCtx = new Deferred<
+            | {
+                  isUserLoggedIn: false;
+                  oidc: Oidc.NotLoggedIn;
+              }
+            | {
+                  isUserLoggedIn: true;
+                  oidc: Oidc.LoggedIn<User>;
+                  dUser: Deferred<
+                      | {
+                            hasCreateUserThrown: true;
+                            initializationError: OidcInitializationError;
+                        }
+                      | {
+                            hasCreateUserThrown: false;
+                            user: Signal<User>;
+                        }
+                  >;
+              }
+        >();
+
         const initialized = signal(false);
-        // A wrapper allows even undefined to be a successfully created User.
-        const userState = signal<{ user: User } | OidcInitializationError | undefined>(undefined);
         type AutoLogoutState = ReturnType<Oidc_angular.LoggedIn<User>["autoLogoutState"]>;
         const autoLogoutState = signal<AutoLogoutState>({ shouldDisplayWarning: false });
         const cleanups = new Set<() => void>();
-        let failedClientConfig: Pick<Oidc.Common, "issuerUri" | "clientId"> | undefined;
-        let hasStarted = false;
         let isRunningGetRuntimeConfigs = false;
         let isEvaluatingInterceptor = false;
         let destroyed = false;
@@ -119,7 +99,273 @@ export function createUtils<User>(params: {
             return unsubscribe;
         }
 
+        const { initialize } = (() => {
+            function createOidcNotLoggedInLike(params: {
+                initializationError: OidcInitializationError;
+                config:
+                    | {
+                          issuerUri: string;
+                          clientId: string;
+                      }
+                    | undefined;
+            }): Oidc.NotLoggedIn {
+                const { initializationError, config } = params;
+
+                return {
+                    isUserLoggedIn: false,
+                    issuerUri:
+                        config === undefined
+                            ? "https://not-resolved-yet"
+                            : toFullyQualifiedUrl({
+                                  urlish: config.issuerUri,
+                                  doAssertNoQueryParams: true,
+                                  doOutputWithTrailingSlash: false,
+                                  rootUrl_fullyQualified: window.location.origin
+                              }),
+                    clientId: config === undefined ? "not-resolved-yet" : config.clientId,
+                    get validRedirectUri(): string {
+                        return toFullyQualifiedUrl({
+                            urlish: getBASE_URL_earlyInit(),
+                            doAssertNoQueryParams: true,
+                            doOutputWithTrailingSlash: true,
+                            rootUrl_fullyQualified: window.location.origin
+                        });
+                    },
+                    login: async () => {
+                        window.alert("Authentication is currently unavailable. Please try again later.");
+                        return new Promise<never>(() => {});
+                    },
+                    initializationError
+                };
+            }
+
+            let hasStarted = false;
+
+            function initialize(
+                getRuntimeConfigsOrRuntimeConfigs: OptionallyAsyncGetterOrDirectValue<
+                    void,
+                    RuntimeConfigs
+                >
+            ): Promise<true> {
+                if (hasStarted) return prInitialized;
+                hasStarted = true;
+
+                const prInitialization = (async () => {
+                    let runtimeConfigs: RuntimeConfigs;
+
+                    isRunningGetRuntimeConfigs = true;
+                    try {
+                        runtimeConfigs = await (typeof getRuntimeConfigsOrRuntimeConfigs === "function"
+                            ? runInInjectionContext(injector, getRuntimeConfigsOrRuntimeConfigs)
+                            : getRuntimeConfigsOrRuntimeConfigs);
+                    } catch (error) {
+                        dClientCtx.resolve({
+                            isUserLoggedIn: false,
+                            oidc: createOidcNotLoggedInLike({
+                                config: undefined,
+                                initializationError: new OidcInitializationError({
+                                    isAuthServerLikelyDown: false,
+                                    messageOrCause: new Error(
+                                        "Error thrown while evaluating the runtime configs getter on the client",
+                                        // @ts-expect-error
+                                        { cause: error }
+                                    )
+                                })
+                            })
+                        });
+                        return;
+                    } finally {
+                        isRunningGetRuntimeConfigs = false;
+                    }
+
+                    if (destroyed) return;
+
+                    switch (runtimeConfigs.mode) {
+                        case "mock":
+                            {
+                                const { createMockOidc } = await import("../core/createMockOidc");
+
+                                const oidc = await createMockOidc<User>({
+                                    createUser_mock: params =>
+                                        runInInjectionContext(injector, () =>
+                                            createUser({
+                                                isMock: true,
+                                                ...params
+                                            })
+                                        ),
+                                    isUserInitiallyLoggedIn:
+                                        runtimeConfigs.isUserInitiallyLoggedIn ?? true,
+
+                                    issuerUri_mock: runtimeConfigs.issuerUri_mock,
+                                    clientId_mock: runtimeConfigs.clientId_mock,
+                                    idTokenClaims_mock: runtimeConfigs.idTokenClaims_mock,
+                                    idToken_mock: runtimeConfigs.idToken_mock,
+                                    accessToken_mock: runtimeConfigs.accessToken_mock,
+                                    refreshToken_mock: runtimeConfigs.refreshToken_mock
+                                });
+
+                                if (destroyed) return;
+
+                                if (!oidc.isUserLoggedIn) {
+                                    dClientCtx.resolve({
+                                        isUserLoggedIn: false,
+                                        oidc
+                                    });
+                                    break;
+                                }
+
+                                dClientCtx.resolve({
+                                    isUserLoggedIn: true,
+                                    oidc,
+                                    dUser: new Deferred()
+                                });
+                            }
+                            break;
+                        case "real":
+                            {
+                                const { createOidc } = await import("../core");
+
+                                let oidc: Oidc<User>;
+
+                                try {
+                                    oidc = await createOidc<User>({
+                                        issuerUri: runtimeConfigs.issuerUri,
+                                        clientId: runtimeConfigs.clientId,
+                                        idleSessionLifetimeInSeconds:
+                                            runtimeConfigs.idleSessionLifetimeInSeconds,
+                                        scopes: runtimeConfigs.scopes,
+                                        transformAuthorizationUrl:
+                                            runtimeConfigs.transformAuthorizationUrl,
+                                        authorizationParams: runtimeConfigs.authorizationParams,
+                                        tokenParams: runtimeConfigs.tokenParams,
+                                        sessionRestorationMethod:
+                                            runtimeConfigs.sessionRestorationMethod,
+                                        debugLogs: runtimeConfigs.debugLogs,
+                                        __oidcProviderMetadata: runtimeConfigs.__oidcProviderMetadata,
+                                        autoLogout_returnToUrl: runtimeConfigs.autoLogout_returnToUrl,
+                                        disableDPoP: runtimeConfigs.disableDPoP,
+                                        warnUserSecondsBeforeAutoLogout:
+                                            runtimeConfigs.warnUserSecondsBeforeAutoLogout,
+                                        createUser: params =>
+                                            runInInjectionContext(injector, () =>
+                                                createUser({
+                                                    isMock: false,
+                                                    ...params
+                                                })
+                                            )
+                                    });
+                                } catch (error) {
+                                    if (!(error instanceof OidcInitializationError)) {
+                                        throw error;
+                                    }
+
+                                    dClientCtx.resolve({
+                                        isUserLoggedIn: false,
+                                        oidc: createOidcNotLoggedInLike({
+                                            initializationError: error,
+                                            config: {
+                                                issuerUri: runtimeConfigs.issuerUri,
+                                                clientId: runtimeConfigs.clientId
+                                            }
+                                        })
+                                    });
+
+                                    break;
+                                }
+
+                                if (destroyed) return;
+
+                                if (!oidc.isUserLoggedIn) {
+                                    dClientCtx.resolve({
+                                        isUserLoggedIn: false,
+                                        oidc
+                                    });
+                                    break;
+                                }
+
+                                dClientCtx.resolve({
+                                    isUserLoggedIn: true,
+                                    oidc,
+                                    dUser: new Deferred()
+                                });
+                            }
+                            break;
+                    }
+
+                    resolve_dUser: {
+                        const { hasResolved, value: ctx } = dClientCtx.getState();
+
+                        assert(hasResolved, "49332832");
+
+                        if (!ctx.isUserLoggedIn) {
+                            break resolve_dUser;
+                        }
+
+                        const { oidc, dUser } = ctx;
+                        void dUser.pr.catch(() => {});
+
+                        registerCleanup(
+                            oidc.subscribeToAutoLogoutState(state => autoLogoutState.set(state))
+                                .unsubscribeFromAutoLogoutState
+                        );
+
+                        let user: WritableSignal<User> | undefined = undefined;
+
+                        const unsubscribeFromUserChange = registerCleanup(
+                            oidc.subscribeToUserChange(({ user: user_next }) => {
+                                if (destroyed) return;
+                                if (user === undefined) {
+                                    user = signal(user_next);
+                                } else {
+                                    user.set(user_next);
+                                }
+                            }).unsubscribeFromUserChange
+                        );
+
+                        try {
+                            // Initialize from the current tokens; refreshUser() explicitly renews them.
+                            const user_initial = await oidc.getUser();
+                            // A cached user may be returned without a new notification.
+                            user ??= signal(user_initial);
+                        } catch (error) {
+                            unsubscribeFromUserChange();
+                            if (!(error instanceof OidcInitializationError)) {
+                                throw error;
+                            }
+                            dUser.resolve({
+                                hasCreateUserThrown: true,
+                                initializationError: error
+                            });
+                            break resolve_dUser;
+                        }
+
+                        assert(user !== undefined, "293302");
+
+                        dUser.resolve({
+                            hasCreateUserThrown: false,
+                            user: user.asReadonly()
+                        });
+                    }
+                })();
+
+                prInitialization.catch(error => {
+                    const { hasResolved, value: ctx } = dClientCtx.getState();
+
+                    if (!hasResolved) {
+                        dClientCtx.reject(error);
+                    } else if (ctx.isUserLoggedIn) {
+                        ctx.dUser.reject(error);
+                    }
+                });
+
+                return prInitialized;
+            }
+
+            return { initialize };
+        })();
+
         function getClientCtx(caller: string) {
+            initialized();
             const state = dClientCtx.getState();
             if (!state.hasResolved) {
                 // Only the interceptor retries pending auth reads. Application reads must be gated.
@@ -133,9 +379,11 @@ export function createUtils<User>(params: {
         }
 
         function getCore(caller: string): Oidc<User> {
-            const ctx = getClientCtx(caller);
-            if (ctx instanceof OidcInitializationError) throw ctx;
-            return ctx;
+            const { oidc } = getClientCtx(caller);
+            if (!oidc.isUserLoggedIn && oidc.initializationError !== undefined) {
+                throw oidc.initializationError;
+            }
+            return oidc;
         }
 
         function getLoggedInCore(caller: string) {
@@ -147,22 +395,35 @@ export function createUtils<User>(params: {
         }
 
         function getInitializationError(): OidcInitializationError | undefined {
-            // Track user initialization, including failures before core could return a client.
-            initialized();
-            const state = userState();
             const ctx = getClientCtx("initializationError");
-            if (ctx instanceof OidcInitializationError) return ctx;
-            if (!ctx.isUserLoggedIn) return ctx.initializationError;
-            if (state === undefined) {
+
+            if (!ctx.isUserLoggedIn) {
+                return ctx.oidc.initializationError;
+            }
+
+            const { hasResolved, value: ctx_user } = ctx.dUser.getState();
+
+            if (!hasResolved) {
                 throw new Error(
                     "oidc-spa: initializationError accessed before oidc.prInitialized resolved."
                 );
             }
-            return state instanceof OidcInitializationError ? state : undefined;
+
+            return ctx_user.hasCreateUserThrown ? ctx_user.initializationError : undefined;
         }
 
-        const initializationError = computed(getInitializationError);
-        const prInitialized = Promise.all([dClientCtx.pr, dUser.pr]).then(() => true as const);
+        const prInitialized = (async () => {
+            const ctx = await dClientCtx.pr;
+
+            if (ctx.isUserLoggedIn) {
+                await ctx.dUser.pr;
+            }
+
+            initialized.set(true);
+            return true as const;
+        })();
+        // The provider observes unexpected failures, including in non-blocking mode.
+        void prInitialized.catch(() => {});
 
         const oidc: Omit<Oidc_angular.LoggedIn<User>, "isUserLoggedIn"> & {
             isUserLoggedIn: boolean;
@@ -174,39 +435,25 @@ export function createUtils<User>(params: {
                 return getInitializationError();
             },
             get issuerUri() {
-                const ctx = getClientCtx("issuerUri");
-                return ctx instanceof OidcInitializationError
-                    ? initializationFailed({ initializationError: ctx, config: failedClientConfig })
-                          .issuerUri
-                    : ctx.issuerUri;
+                return getClientCtx("issuerUri").oidc.issuerUri;
             },
             get clientId() {
-                const ctx = getClientCtx("clientId");
-                return ctx instanceof OidcInitializationError
-                    ? initializationFailed({ initializationError: ctx, config: failedClientConfig })
-                          .clientId
-                    : ctx.clientId;
+                return getClientCtx("clientId").oidc.clientId;
             },
             get validRedirectUri() {
-                const ctx = getClientCtx("validRedirectUri");
-                return ctx instanceof OidcInitializationError
-                    ? initializationFailed({ initializationError: ctx, config: failedClientConfig })
-                          .validRedirectUri
-                    : ctx.validRedirectUri;
+                return getClientCtx("validRedirectUri").oidc.validRedirectUri;
             },
             get isUserLoggedIn() {
                 const ctx = getClientCtx("isUserLoggedIn");
-                const state = userState();
-                const error =
-                    ctx instanceof OidcInitializationError
-                        ? ctx
-                        : state instanceof OidcInitializationError
-                        ? state
-                        : undefined;
-                if (error !== undefined) {
+
+                if (!ctx.isUserLoggedIn) {
                     return false;
                 }
-                return (ctx as Oidc<User>).isUserLoggedIn;
+
+                const { hasResolved, value: ctx_user } = ctx.dUser.getState();
+
+                // Interceptors can read authentication state before the user is ready.
+                return !hasResolved || !ctx_user.hasCreateUserThrown;
             },
             get isNewBrowserSession() {
                 return getLoggedInCore("isNewBrowserSession").isNewBrowserSession;
@@ -217,10 +464,6 @@ export function createUtils<User>(params: {
             async login({ doesCurrentHrefEnforceLogin = false, ...rest } = {}) {
                 await prInitialized;
                 const ctx = getClientCtx("login");
-                if (ctx instanceof OidcInitializationError) {
-                    window.alert("Authentication is currently unavailable. Please try again later.");
-                    return new Promise<never>(() => {});
-                }
                 if (ctx.isUserLoggedIn) {
                     if (getInitializationError() !== undefined) {
                         console.warn(
@@ -233,7 +476,7 @@ export function createUtils<User>(params: {
                         "oidc-spa: login() called while already logged in. Use startAuthorization() instead."
                     );
                 }
-                return ctx.login({ ...rest, doesCurrentHrefEnforceLogin });
+                return ctx.oidc.login({ ...rest, doesCurrentHrefEnforceLogin });
             },
             async logout(params) {
                 await dClientCtx.pr;
@@ -248,14 +491,30 @@ export function createUtils<User>(params: {
                 return getLoggedInCore("startAuthorization").startAuthorization(params);
             },
             autoLogoutState: computed(() =>
-                userState() instanceof OidcInitializationError
+                initialized() && getInitializationError() !== undefined
                     ? { shouldDisplayWarning: false as const }
                     : autoLogoutState()
             ),
             user: computed(() => {
-                const state = userState();
-                if (state === undefined) {
-                    if (initialized()) getLoggedInCore("user");
+                initialized();
+                const { hasResolved, value: ctx } = dClientCtx.getState();
+
+                if (!hasResolved) {
+                    throw new Error(
+                        "oidc-spa: User accessed before oidc.prInitialized resolved. " +
+                            "Gate your UI with @defer (when oidc.prInitialized | async). " +
+                            "Do not wait for the user from inside createUser."
+                    );
+                }
+
+                if (!ctx.isUserLoggedIn) {
+                    getLoggedInCore("user");
+                    assert(false);
+                }
+
+                const { hasResolved: hasResolved_user, value: ctx_user } = ctx.dUser.getState();
+
+                if (!hasResolved_user) {
                     throw new Error(
                         isEvaluatingInterceptor
                             ? "oidc-spa: shouldInjectAccessToken accessed the user before it was ready. " +
@@ -265,9 +524,12 @@ export function createUtils<User>(params: {
                               "Do not wait for the user from inside createUser."
                     );
                 }
-                if (state instanceof OidcInitializationError) throw state;
-                getLoggedInCore("user");
-                return state.user;
+
+                if (ctx_user.hasCreateUserThrown) {
+                    throw ctx_user.initializationError;
+                }
+
+                return ctx_user.user();
             }),
             async refreshUser() {
                 await prInitialized;
@@ -277,159 +539,65 @@ export function createUtils<User>(params: {
             }
         };
 
-        function completeUserInitialization(error?: OidcInitializationError) {
-            if (error !== undefined) userState.set(error);
-            initialized.set(true);
-            dUser.resolve();
-        }
+        const { getOidc } = (() => {
+            let oidc_cached: Oidc<User> | undefined = undefined;
 
-        async function initialize(
-            getRuntimeConfigsOrRuntimeConfigs: OptionallyAsyncGetterOrDirectValue<void, RuntimeConfigs>
-        ): Promise<true> {
-            if (hasStarted) return prInitialized;
-            hasStarted = true;
+            async function getOidc(params?: {
+                assert?: "user logged in" | "user not logged in";
+            }): Promise<Oidc<User>> {
+                const ctx = await dClientCtx.pr;
 
-            let runtimeConfigs: RuntimeConfigs;
-            isRunningGetRuntimeConfigs = true;
-            try {
-                runtimeConfigs = await (typeof getRuntimeConfigsOrRuntimeConfigs === "function"
-                    ? runInInjectionContext(injector, getRuntimeConfigsOrRuntimeConfigs)
-                    : getRuntimeConfigsOrRuntimeConfigs);
-            } catch (error) {
-                const initializationError = new OidcInitializationError({
-                    isAuthServerLikelyDown: false,
-                    messageOrCause: new Error(
-                        "Error thrown while evaluating the runtime configs getter on the client",
-                        // @ts-expect-error ES2022 Error.cause
-                        { cause: error }
-                    )
-                });
-                dClientCtx.resolve(initializationError);
-                completeUserInitialization(initializationError);
-                return prInitialized;
-            } finally {
-                isRunningGetRuntimeConfigs = false;
-            }
+                checkAssertion(ctx.oidc, params?.assert, "getOidc");
 
-            if (destroyed) return prInitialized;
-
-            let oidcCore: Oidc<User>;
-            switch (runtimeConfigs.mode) {
-                case "mock": {
-                    const { createMockOidc } = await import("../core/createMockOidc");
-                    oidcCore = await createMockOidc<User>({
-                        createUser_mock: params =>
-                            runInInjectionContext(injector, () =>
-                                createUser({ isMock: true, ...params })
-                            ),
-                        isUserInitiallyLoggedIn: runtimeConfigs.isUserInitiallyLoggedIn ?? true,
-                        issuerUri_mock: runtimeConfigs.issuerUri_mock,
-                        clientId_mock: runtimeConfigs.clientId_mock,
-                        idTokenClaims_mock: runtimeConfigs.idTokenClaims_mock,
-                        idToken_mock: runtimeConfigs.idToken_mock,
-                        accessToken_mock: runtimeConfigs.accessToken_mock,
-                        refreshToken_mock: runtimeConfigs.refreshToken_mock
-                    });
-                    break;
+                if (oidc_cached !== undefined) {
+                    return oidc_cached;
                 }
-                case "real": {
-                    const { createOidc } = await import("../core");
-                    const { mode, ...configs } = runtimeConfigs;
-                    failedClientConfig = {
-                        issuerUri: configs.issuerUri,
-                        clientId: configs.clientId
-                    };
-                    try {
-                        oidcCore = await createOidc<User>({
-                            ...configs,
-                            createUser: params =>
-                                runInInjectionContext(injector, () =>
-                                    createUser({ isMock: false, ...params })
+
+                oidc_cached = (() => {
+                    if (ctx.oidc.isUserLoggedIn) {
+                        const { oidc } = ctx;
+                        const oidc_proxy = id<Oidc.LoggedIn<User>>({
+                            ...oidc,
+                            getTokens: params => {
+                                if (params === undefined) {
+                                    return oidc.getTokens();
+                                }
+                                return oidc.getTokens({
+                                    ...params,
+                                    returnToUrl: params.returnToUrl ?? returnToUrl_temporaryOverride
+                                });
+                            },
+                            getAccessToken: async (params): Promise<string> => {
+                                const { accessToken } = await oidc_proxy.getTokens(params);
+                                return accessToken;
+                            },
+                            subscribeToTokensChange: next => ({
+                                unsubscribeFromTokensChange: registerCleanup(
+                                    oidc.subscribeToTokensChange(next).unsubscribeFromTokensChange
                                 )
+                            }),
+                            subscribeToUserChange: next => ({
+                                unsubscribeFromUserChange: registerCleanup(
+                                    oidc.subscribeToUserChange(next).unsubscribeFromUserChange
+                                )
+                            }),
+                            subscribeToAutoLogoutState: next => ({
+                                unsubscribeFromAutoLogoutState: registerCleanup(
+                                    oidc.subscribeToAutoLogoutState(next).unsubscribeFromAutoLogoutState
+                                )
+                            })
                         });
-                    } catch (error) {
-                        if (!(error instanceof OidcInitializationError)) throw error;
-                        dClientCtx.resolve(error);
-                        completeUserInitialization(error);
-                        return prInitialized;
+                        return oidc_proxy;
+                    } else {
+                        return ctx.oidc;
                     }
-                    break;
-                }
+                })();
+
+                return oidc_cached;
             }
 
-            dClientCtx.resolve(oidcCore);
-            if (destroyed || !oidcCore.isUserLoggedIn) {
-                completeUserInitialization();
-                return prInitialized;
-            }
-
-            registerCleanup(
-                oidcCore.subscribeToAutoLogoutState(state => autoLogoutState.set(state))
-                    .unsubscribeFromAutoLogoutState
-            );
-            // Subscribe before getUser(): core publishes the first user through this callback.
-            // Token access is already available, including to HttpClient requests inside createUser.
-            const unsubscribeFromUserChange = registerCleanup(
-                oidcCore.subscribeToUserChange(({ user }) => {
-                    if (!destroyed) userState.set({ user });
-                }).unsubscribeFromUserChange
-            );
-            try {
-                await oidcCore.getUser();
-            } catch (error) {
-                unsubscribeFromUserChange();
-                if (!(error instanceof OidcInitializationError)) throw error;
-                completeUserInitialization(error);
-                return prInitialized;
-            }
-            completeUserInitialization();
-            return prInitialized;
-        }
-
-        let oidc_cached: Oidc<User> | undefined;
-        async function getOidc(params?: {
-            assert?: "user logged in" | "user not logged in";
-        }): Promise<Oidc<User>> {
-            const ctx = await dClientCtx.pr;
-            const oidc_core: Oidc<User> =
-                ctx instanceof OidcInitializationError
-                    ? initializationFailed({
-                          initializationError: ctx,
-                          config: failedClientConfig
-                      })
-                    : ctx;
-            checkAssertion(oidc_core, params?.assert, "getOidc");
-            if (oidc_cached !== undefined) return oidc_cached;
-            if (!oidc_core.isUserLoggedIn) return (oidc_cached = oidc_core);
-
-            const oidc_proxy: Oidc.LoggedIn<User> = {
-                ...oidc_core,
-                getTokens: params =>
-                    params === undefined
-                        ? oidc_core.getTokens()
-                        : oidc_core.getTokens({
-                              ...params,
-                              returnToUrl: params.returnToUrl ?? returnToUrl_temporaryOverride
-                          }),
-                getAccessToken: async params => (await oidc_proxy.getTokens(params)).accessToken,
-                subscribeToTokensChange: next => ({
-                    unsubscribeFromTokensChange: registerCleanup(
-                        oidc_core.subscribeToTokensChange(next).unsubscribeFromTokensChange
-                    )
-                }),
-                subscribeToUserChange: next => ({
-                    unsubscribeFromUserChange: registerCleanup(
-                        oidc_core.subscribeToUserChange(next).unsubscribeFromUserChange
-                    )
-                }),
-                subscribeToAutoLogoutState: next => ({
-                    unsubscribeFromAutoLogoutState: registerCleanup(
-                        oidc_core.subscribeToAutoLogoutState(next).unsubscribeFromAutoLogoutState
-                    )
-                })
-            };
-            return (oidc_cached = oidc_proxy);
-        }
+            return { getOidc };
+        })();
 
         function setReturnToUrlOverride(returnToUrl: string, router: Router) {
             clearReturnToUrlOverride?.();
@@ -454,12 +622,11 @@ export function createUtils<User>(params: {
 
         return {
             oidc,
-            initializationError,
             initialize,
             getOidc,
             getCore,
             setReturnToUrlOverride,
-            prCore: dClientCtx.pr,
+            prClientCtx: dClientCtx.pr,
             get isRunningGetRuntimeConfigs() {
                 return isRunningGetRuntimeConfigs;
             },
@@ -573,7 +740,7 @@ export function createUtils<User>(params: {
                 try {
                     decision = evaluate();
                 } catch (error) {
-                    if (error !== runtime.prCore) throw error;
+                    if (error !== runtime.prClientCtx) throw error;
                 }
                 if (decision === false) return next(req);
 
@@ -586,7 +753,7 @@ export function createUtils<User>(params: {
                                 "must return false from shouldInjectAccessToken before reading authentication state."
                         );
                     }, 4_000);
-                    return from(runtime.prCore).pipe(
+                    return from(runtime.prClientCtx).pipe(
                         switchMap(() => {
                             if (!(decision ?? evaluate())) return next(req);
                             const oidc = runtime.getCore("createOidcInterceptor");
@@ -624,14 +791,14 @@ export function createUtils<User>(params: {
             const runtime = inject(runtimeToken);
             const router = inject(Router);
             const navigationId = router.getCurrentNavigation()?.id;
-            const oidc = await runtime.getOidc();
+            const ctx = await runtime.prClientCtx;
             // Angular can cancel a navigation while authentication is still pending.
             // Its guard promise continues running, so do not redirect or install an override
             // for a route that is no longer being activated.
             if (navigationId !== undefined && router.getCurrentNavigation()?.id !== navigationId)
                 return true;
-            if (!oidc.isUserLoggedIn && oidc.initializationError !== undefined) {
-                throw oidc.initializationError;
+            if (!ctx.isUserLoggedIn && ctx.oidc.initializationError !== undefined) {
+                throw ctx.oidc.initializationError;
             }
             const returnToUrl = toFullyQualifiedUrl({
                 urlish:
@@ -644,22 +811,23 @@ export function createUtils<User>(params: {
                             { queryParams: route.queryParams, fragment: route.fragment ?? undefined }
                         )
                     ),
-                rootUrl_fullyQualified: oidc.validRedirectUri,
+                rootUrl_fullyQualified: ctx.oidc.validRedirectUri,
                 doAssertNoQueryParams: false
             });
             const isUrlAlreadyReplaced =
                 window.location.href.replace(/\/$/, "") === returnToUrl.replace(/\/$/, "");
-            if (!oidc.isUserLoggedIn) {
-                await oidc.login({ returnToUrl, doesCurrentHrefEnforceLogin: isUrlAlreadyReplaced });
+            if (!ctx.isUserLoggedIn) {
+                await ctx.oidc.login({ returnToUrl, doesCurrentHrefEnforceLogin: isUrlAlreadyReplaced });
+                assert(false, "333203");
             }
             if (!isUrlAlreadyReplaced) runtime.setReturnToUrlOverride(returnToUrl, router);
 
-            // Angular cannot suspend a component reading the user. Wait before activating it.
-            await runtime.oidc.prInitialized;
+            const ctx_user = await ctx.dUser.pr;
             if (navigationId !== undefined && router.getCurrentNavigation()?.id !== navigationId)
                 return true;
-            const error = runtime.initializationError();
-            if (error !== undefined) throw error;
+            if (ctx_user.hasCreateUserThrown) {
+                throw ctx_user.initializationError;
+            }
             return true;
         }
     };
