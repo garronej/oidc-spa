@@ -2,7 +2,7 @@ import { MagicString } from "../../vendor/build-runtime/magic-string";
 import { babelParser, babelTraverse, babelTypes as t } from "../../vendor/build-runtime/babel";
 
 const DISABLE_SSR_SPECIFIER = "__disableSsrIfLoginEnforced";
-const DISABLE_SSR_SOURCE = "oidc-spa/react-tanstack-start";
+const DISABLE_SSR_SOURCE = "oidc-spa/tanstack-start-react";
 const CREATE_FILE_ROUTE_IDENTIFIER = "createFileRoute";
 
 type TransformParams = {

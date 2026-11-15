@@ -43,7 +43,7 @@ To use local oidc-spa source, run `yarn start-next-example` from the repository 
 
 -   `instrumentation-client.ts` calls `oidcEarlyInit()` before the app becomes interactive, with DPoP
     enabled.
--   `lib/oidc.tsx` uses `oidc-spa/react-nextjs` to define `User_client` with `withUser()`, configure
+-   `lib/oidc.tsx` uses `oidc-spa/nextjs` to define `User_client` with `withUser()`, configure
     providers with `withRuntimeConfigs()`, and export typed hooks and App Router login helpers.
 -   `app/layout.tsx` wraps the entire UI in one `OidcInitializationGate`: the header, all pages,
     and the session warning. It renders no application content until browser auth is ready.

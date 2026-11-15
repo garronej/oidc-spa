@@ -1,6 +1,6 @@
 "use client";
 
-import { oidcSpa } from "oidc-spa/react-nextjs";
+import { oidcSpa } from "oidc-spa/nextjs";
 import { z } from "zod";
 import { decodeJwt } from "oidc-spa/decode-jwt";
 import avatarFallbackSvg from "@/assets/userPictureFallback.svg";

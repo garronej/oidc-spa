@@ -49,9 +49,9 @@ function Home() {
                             <a href={`${sourceUrl}/src/oidc.ts`}>
                                 <code>src/oidc.ts</code>
                             </a>{" "}
-                            uses <code>oidc-spa/react-spa</code>. <code>withUser()</code> maps token
-                            claims to a display name, email, avatar, and admin navigation flag.
-                            Components receive this model through <code>useOidc()</code>.
+                            uses <code>oidc-spa/react</code>. <code>withUser()</code> maps token claims
+                            to a display name, email, avatar, and admin navigation flag. Components
+                            receive this model through <code>useOidc()</code>.
                         </p>
                     </li>
                     <li>

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak";
+import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
 import { useOidc } from "../oidc";
 
 const { login, issuerUri } = useOidc({ assert: "user not logged in" });
 
-const keycloakUtils = 
-     isKeycloak({ issuerUri }) ? createKeycloakUtils({ issuerUri }) : undefined;
+const keycloakUtils = isKeycloak({ issuerUri }) ? createKeycloakUtils({ issuerUri }) : undefined;
 </script>
 
 <template>

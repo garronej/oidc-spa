@@ -2,4 +2,5 @@ export { __disableSsrIfLoginEnforced } from "./disableSsrIfLoginEnforced";
 export { __withOidcSpaServerEntry } from "./withOidcSpaServerEntry";
 export type * from "./types";
 export { oidcSpa } from "./oidcSpa";
-export { OidcInitializationError } from "../../core";
+export { OidcInitializationError } from "../core";
+export { decodeJwt } from "../tools/decodeJwt";

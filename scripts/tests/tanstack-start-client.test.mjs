@@ -8,8 +8,8 @@ const repo = fileURLToPath(new URL("../../", import.meta.url));
 const { outputFiles } = await build({
     stdin: {
         contents: `
-            export * from "./src/tanstack-start/react";
-            export { oidcSpa as reactSpa } from "./src/react-spa";
+            export * from "./src/tanstack-start-react";
+            export { oidcSpa as reactSpa } from "./src/react";
             export { setBASE_URL_earlyInit } from "./src/core/earlyInit_BASE_URL";
             export { setGetRootRelativeOriginalLocationHref_earlyInit } from "./src/core/earlyInit_rootRelativeOriginalLocationHref";
         `,
@@ -44,8 +44,6 @@ const { outputFiles } = await build({
                     export const setResponseHeader = () => {};
                     export const setResponseStatus = () => {};
                 `,
-                    "../../core":
-                        "export const createOidc = params => globalThis.createCoreOidc(params);",
                     "../core": "export const createOidc = params => globalThis.createCoreOidc(params);",
                     "virtual:oidc-spa/tanstack-start-public-env": `
                     export const publicEnvNames = new Set(globalThis.publicEnvNames);
@@ -54,8 +52,9 @@ const { outputFiles } = await build({
                 };
                 build.onResolve({ filter: /.*/ }, ({ path, importer }) =>
                     Object.hasOwn(stubs, path) &&
-                    (path !== "../../core" || importer.endsWith("/react/createUtils.ts")) &&
-                    (path !== "../core" || importer.endsWith("/react-spa/createUtils.ts"))
+                    (path !== "../core" ||
+                        importer.endsWith("/react/createUtils.ts") ||
+                        importer.endsWith("/tanstack-start-react/createUtils.ts"))
                         ? { path, namespace: "fixture" }
                         : undefined
                 );
@@ -274,16 +273,16 @@ for (const asynchronous of [false, true]) {
     });
 }
 
-for (const adapter of ["react-spa", "tanstack-start"]) {
+for (const adapter of ["react", "tanstack-start"]) {
     const createUtils = (f, runtimeConfigs) =>
-        adapter === "react-spa"
+        adapter === "react"
             ? f.reactSpa
                   .withUser(() => ({}))
                   .withRuntimeConfigs(runtimeConfigs)
                   .createUtils()
             : f.createUtils(undefined, runtimeConfigs);
     const enforceLogin = utils =>
-        adapter === "react-spa"
+        adapter === "react"
             ? utils.enforceLogin({ request: { url: "https://app.test/private" } })
             : utils.enforceLogin(navigation());
 
@@ -298,7 +297,7 @@ for (const adapter of ["react-spa", "tanstack-start"]) {
         assert.equal(clientId, "not-resolved-yet");
         assert.equal(validRedirectUri, "https://app.test/");
         assert.equal(initializationError.cause.cause, cause);
-        if (adapter === "react-spa") {
+        if (adapter === "react") {
             const state = f.render(utils.useOidc);
             assert.equal(state.issuerUri, issuerUri);
             assert.equal(state.clientId, clientId);
@@ -319,7 +318,7 @@ for (const adapter of ["react-spa", "tanstack-start"]) {
             });
             f.control.coreThrow = error;
             const config =
-                adapter === "react-spa"
+                adapter === "react"
                     ? { mode: "real", issuerUri, clientId: "configured-client" }
                     : { mode: "real", issuerUri, client: { clientId: "configured-client" } };
             const utils = createUtils(f, config);
@@ -333,7 +332,7 @@ for (const adapter of ["react-spa", "tanstack-start"]) {
                     ? "https://app.test/realms/demo"
                     : "https://auth.test/realms/demo"
             );
-            if (adapter === "react-spa") {
+            if (adapter === "react") {
                 const state = f.render(utils.useOidc);
                 assert.equal(state.issuerUri, oidc.issuerUri);
                 assert.equal(state.clientId, oidc.clientId);

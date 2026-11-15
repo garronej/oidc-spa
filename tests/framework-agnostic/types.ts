@@ -4,7 +4,7 @@ import {
     type OidcSpaUtils,
     type CreateClientUser,
     type RuntimeConfigs
-} from "../../src/framework-agnostic";
+} from "../../src/client";
 import { assert, type Equals } from "../../src/tools/tsafe/assert";
 
 type User = { displayName: string };

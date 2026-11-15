@@ -1,5 +1,5 @@
 import { OidcInitializationError } from "./OidcInitializationError";
-import { isKeycloak, createKeycloakUtils } from "../keycloak";
+import { isKeycloak, createKeycloakUtils } from "../keycloak-utils";
 import { getIsValidRemoteJson } from "../tools/getIsValidRemoteJson";
 import { WELL_KNOWN_PATH } from "./fetchOidcProviderMetadata";
 import { assert } from "../tools/tsafe/assert";

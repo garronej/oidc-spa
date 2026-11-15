@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { createKeycloakUtils, isKeycloak } from 'oidc-spa/keycloak';
+import { createKeycloakUtils, isKeycloak } from 'oidc-spa/keycloak-utils';
 import { injectOidc } from '../oidc';
 
 @Component({

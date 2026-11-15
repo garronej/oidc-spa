@@ -1,8 +1,8 @@
 "use client";
 
-export * from "../react-spa";
-import { oidcSpa as oidcSpa_react } from "../react-spa";
-import type { OidcSpa } from "../react-spa/oidcSpa";
+export * from "../react";
+import { oidcSpa as oidcSpa_react } from "../react";
+import type { OidcSpa } from "../react/oidcSpa";
 import { adaptOidcSpaUtils } from "./adaptOidcSpaUtils";
 
 type CompleteBuilder = typeof oidcSpa_react & OidcSpa<unknown, "withUser" | "withRuntimeConfigs">;

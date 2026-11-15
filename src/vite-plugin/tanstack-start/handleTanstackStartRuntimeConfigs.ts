@@ -55,7 +55,7 @@ export function createHandleTanstackStartRuntimeConfigs(params: { resolvedConfig
     const { resolvedConfig } = params;
     const virtualId = "virtual:oidc-spa/tanstack-start-public-env";
     const resolvedId = `\0${virtualId}`;
-    const adapterId = "oidc-spa/react-tanstack-start";
+    const adapterId = "oidc-spa/tanstack-start-react";
     let scanPromise:
         | Promise<{
               publicEnvNames: string[];

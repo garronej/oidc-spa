@@ -8,7 +8,7 @@ import { build } from "esbuild";
 const { outputFiles, metafile } = await build({
     stdin: {
         contents: `
-            export * from "./src/framework-agnostic";
+            export * from "./src/client";
             export { setBASE_URL_earlyInit } from "./src/core/earlyInit_BASE_URL";
             export { setGetRootRelativeOriginalLocationHref_earlyInit } from "./src/core/earlyInit_rootRelativeOriginalLocationHref";
         `,

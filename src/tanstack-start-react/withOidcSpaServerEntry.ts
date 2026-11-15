@@ -2,7 +2,7 @@ import type { Register } from "@tanstack/react-router";
 // NOTE: This is actually "@tanstack/react-start/server" but since our module is not labeled as ESM we import it from here.
 // it does not matter since it's type level only.
 import type { RequestHandler } from "@tanstack/react-start-server";
-import { getStateDataCookies } from "../../core/StateDataCookie";
+import { getStateDataCookies } from "../core/StateDataCookie";
 
 export function __withOidcSpaServerEntry<T extends { fetch: RequestHandler<Register> }>(
     serverEntry_original: T

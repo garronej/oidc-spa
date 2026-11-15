@@ -82,13 +82,13 @@ test("TanStack Start runtime config environment manifest", async t => {
         const load = () => read(handler);
         return { root, handler, createHandler, context, resolvedSpecifiers, read, load };
     };
-    const setup = `import { oidcSpa } from "oidc-spa/react-tanstack-start";
+    const setup = `import { oidcSpa } from "oidc-spa/tanstack-start-react";
         const builder = oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));
         const { withRuntimeConfigs } = builder;`;
 
     await t.test("analyzes the complete runtime configs builder chain", async () => {
         const { load } = await fixture({
-            "oidc.ts": `import { oidcSpa } from "oidc-spa/react-tanstack-start";
+            "oidc.ts": `import { oidcSpa } from "oidc-spa/tanstack-start-react";
             export const { useOidc, getOidc } = oidcSpa
                 .withClientUser(({ idTokenClaims }) => idTokenClaims)
                 .withServerUser(({ accessTokenClaims }) => accessTokenClaims)
@@ -175,7 +175,7 @@ test("TanStack Start runtime config environment manifest", async t => {
         async () => {
             const { load } = await fixture({
                 "oidc.ts": `
-            import { oidcSpa as auth } from "oidc-spa/react-tanstack-start";
+            import { oidcSpa as auth } from "oidc-spa/tanstack-start-react";
             const builder = auth.withClientUser(() => ({})).withServerUser(() => ({}));
             const { withRuntimeConfigs: configureRuntime } = builder;
             function options({ process: p }) {
@@ -220,7 +220,7 @@ test("TanStack Start runtime config environment manifest", async t => {
         "follows imported runtime config method aliases through reexports, including lazy source files",
         async () => {
             const { load } = await fixture({
-                "auth.ts": `import * as adapter from "oidc-spa/react-tanstack-start"; export const { withRuntimeConfigs: configureRuntime } = adapter.oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));`,
+                "auth.ts": `import * as adapter from "oidc-spa/tanstack-start-react"; export const { withRuntimeConfigs: configureRuntime } = adapter.oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));`,
                 "barrel.ts": `export { configureRuntime as configure } from "./auth";`,
                 "routes/lazy.ts": `import { configure } from "@/barrel"; configure(({ process }) => ({ mode: "mock", client: { clientId_mock: process.env.LAZY_CLIENT } }));`
             });
@@ -232,7 +232,7 @@ test("TanStack Start runtime config environment manifest", async t => {
     );
     await t.test("follows builder reexports and tolerates circular barrels", async () => {
         const { load } = await fixture({
-            "a.ts": `export * from "./b"; export { oidcSpa as auth } from "oidc-spa/react-tanstack-start";`,
+            "a.ts": `export * from "./b"; export { oidcSpa as auth } from "oidc-spa/tanstack-start-react";`,
             "b.ts": `export * from "./a";`,
             "oidc.ts": `import { auth } from "./a"; const { withRuntimeConfigs } = auth.withClientUser(() => ({})).withServerUser(() => ({})); withRuntimeConfigs(({ process }) => ({ mode: "mock", client: { clientId_mock: process.env.CLIENT } }));`
         });
@@ -263,7 +263,7 @@ test("TanStack Start runtime config environment manifest", async t => {
     await t.test("follows aliases implemented by Vite resolver hooks", async () => {
         const { load } = await fixture(
             {
-                "auth.ts": `import { oidcSpa } from "oidc-spa/react-tanstack-start"; export const { withRuntimeConfigs: configureRuntime } = oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));`,
+                "auth.ts": `import { oidcSpa } from "oidc-spa/tanstack-start-react"; export const { withRuntimeConfigs: configureRuntime } = oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));`,
                 "barrel.ts": `export { configureRuntime } from "./auth";`,
                 "oidc.ts": `import { configureRuntime } from "@/barrel"; configureRuntime(({ process }) => ({ mode: "mock", client: { clientId_mock: process.env.CLIENT } }));`
             },
@@ -274,7 +274,7 @@ test("TanStack Start runtime config environment manifest", async t => {
     await t.test("uses the server resolver when loaded by the client", async () => {
         const { root, handler, context, resolvedSpecifiers, read } = await fixture(
             {
-                "auth.ts": `import { oidcSpa } from "oidc-spa/react-tanstack-start"; export const { withRuntimeConfigs: configureRuntime } = oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));`,
+                "auth.ts": `import { oidcSpa } from "oidc-spa/tanstack-start-react"; export const { withRuntimeConfigs: configureRuntime } = oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));`,
                 "barrel.ts": `export { configureRuntime } from "./auth";`,
                 "oidc.ts": `import { configureRuntime } from "@/barrel"; configureRuntime(({ process }) => ({
                     mode: "real",
@@ -382,7 +382,7 @@ test("TanStack Start runtime config environment manifest", async t => {
     await t.test("follows local package import mappings through the resolver", async () => {
         const { load, resolvedSpecifiers } = await fixture({
             "package.json": JSON.stringify({ imports: { "#/*": "./src/*" } }),
-            "src/auth.ts": `import { oidcSpa } from "oidc-spa/react-tanstack-start"; export const { withRuntimeConfigs: configureRuntime } = oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));`,
+            "src/auth.ts": `import { oidcSpa } from "oidc-spa/tanstack-start-react"; export const { withRuntimeConfigs: configureRuntime } = oidcSpa.withClientUser(() => ({})).withServerUser(() => ({}));`,
             "oidc.ts": `import { configureRuntime } from "#/auth"; configureRuntime(({ process }) => ({ mode: "mock", client: { clientId_mock: process.env.CLIENT } }));`,
             "test.ts": `import "vitest";`
         });

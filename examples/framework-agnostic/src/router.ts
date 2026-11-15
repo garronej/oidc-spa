@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { enforceLogin } from "./oidc";
-import { OidcInitializationError } from "oidc-spa/framework-agnostic";
+import { OidcInitializationError } from "oidc-spa/client";
 
 declare module "vue-router" {
     interface RouteMeta {

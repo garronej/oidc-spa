@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak";
+import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
 import { getOidcSync, useUser } from "../../oidc";
 import { assert } from "tsafe";
 

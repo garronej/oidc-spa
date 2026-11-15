@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
-import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak";
+import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
 import { getOidcSync, useUser } from "../oidc";
 
 const oidc = getOidcSync();

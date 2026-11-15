@@ -1,9 +1,9 @@
-import { oidcSpa } from "oidc-spa/framework-agnostic";
+import { oidcSpa } from "oidc-spa/client";
 import { z } from "zod";
 import { decodeJwt } from "oidc-spa/decode-jwt";
 import avatarFallbackSvgUrl from "./assets/userPictureFallback.svg";
 import { computed, shallowRef, shallowReadonly } from "vue";
-import type { Oidc, AutoLogoutState } from "oidc-spa/framework-agnostic";
+import type { Oidc, AutoLogoutState } from "oidc-spa/client";
 import { assert } from "tsafe";
 
 // App-specific user model exposed by `useUser()`.

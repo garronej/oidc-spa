@@ -4,7 +4,7 @@ import type {
     RuntimeConfigs as RuntimeConfigs_react,
     CreateClientUser as CreateClientUser_react,
     Oidc_react
-} from "../../src/react-spa/types";
+} from "../../src/react/types";
 import {
     oidcSpa,
     type CreateClientUser,

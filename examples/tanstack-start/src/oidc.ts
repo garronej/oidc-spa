@@ -1,4 +1,4 @@
-import { oidcSpa } from "oidc-spa/react-tanstack-start";
+import { oidcSpa } from "oidc-spa/tanstack-start-react";
 import { z } from "zod";
 import { decodeJwt } from "oidc-spa/decode-jwt";
 import { getRouterInstance } from "@tanstack/react-start";

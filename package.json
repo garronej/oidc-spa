@@ -175,15 +175,10 @@
             "import": "./dist/esm/entrypoint.mjs",
             "default": "./dist/entrypoint.js"
         },
-        "./core": {
-            "module": "./dist/esm/core/index.mjs",
-            "import": "./dist/esm/core/index.mjs",
-            "default": "./dist/core/index.js"
-        },
-        "./core-mock": {
-            "module": "./dist/esm/core-mock.mjs",
-            "import": "./dist/esm/core-mock.mjs",
-            "default": "./dist/core-mock.js"
+        "./client": {
+            "module": "./dist/esm/client/index.mjs",
+            "import": "./dist/esm/client/index.mjs",
+            "default": "./dist/client/index.js"
         },
         "./vite-plugin": {
             "types": "./dist/esm/vite-plugin/index.d.ts",
@@ -202,33 +197,28 @@
             "import": "./dist/esm/server/index.mjs",
             "default": "./dist/server/index.js"
         },
-        "./react-spa": {
-            "module": "./dist/esm/react-spa/index.mjs",
-            "import": "./dist/esm/react-spa/index.mjs",
-            "default": "./dist/react-spa/index.js"
+        "./react": {
+            "module": "./dist/esm/react/index.mjs",
+            "import": "./dist/esm/react/index.mjs",
+            "default": "./dist/react/index.js"
         },
         "./vue": {
             "types": "./dist/esm/vue/index.d.ts",
             "module": "./dist/esm/vue/index.mjs",
             "import": "./dist/esm/vue/index.mjs",
-            "default": "./dist/vue/index.js"
+            "default": "./dist/esm/vue/index.mjs"
         },
-        "./framework-agnostic": {
-            "module": "./dist/esm/framework-agnostic/index.mjs",
-            "import": "./dist/esm/framework-agnostic/index.mjs",
-            "default": "./dist/framework-agnostic/index.js"
+        "./tanstack-start-react": {
+            "types": "./dist/esm/tanstack-start-react/index.d.ts",
+            "module": "./dist/esm/tanstack-start-react/index.mjs",
+            "import": "./dist/esm/tanstack-start-react/index.mjs",
+            "default": "./dist/esm/tanstack-start-react/index.mjs"
         },
-        "./react-tanstack-start": {
-            "types": "./dist/esm/tanstack-start/react/index.d.ts",
-            "module": "./dist/esm/tanstack-start/react/index.mjs",
-            "import": "./dist/esm/tanstack-start/react/index.mjs",
-            "default": "./dist/esm/tanstack-start/react/index.mjs"
-        },
-        "./react-nextjs": {
-            "types": "./dist/esm/react-nextjs/index.d.ts",
-            "module": "./dist/esm/react-nextjs/index.mjs",
-            "import": "./dist/esm/react-nextjs/index.mjs",
-            "default": "./dist/esm/react-nextjs/index.mjs"
+        "./nextjs": {
+            "types": "./dist/esm/nextjs/index.d.ts",
+            "module": "./dist/esm/nextjs/index.mjs",
+            "import": "./dist/esm/nextjs/index.mjs",
+            "default": "./dist/esm/nextjs/index.mjs"
         },
         "./angular": {
             "types": "./dist/esm/angular/index.d.ts",
@@ -236,15 +226,15 @@
             "import": "./dist/esm/angular/index.mjs",
             "default": "./dist/esm/angular/index.mjs"
         },
-        "./keycloak": {
-            "module": "./dist/esm/keycloak/index.mjs",
-            "import": "./dist/esm/keycloak/index.mjs",
-            "default": "./dist/keycloak/index.js"
+        "./keycloak-utils": {
+            "module": "./dist/esm/keycloak-utils/index.mjs",
+            "import": "./dist/esm/keycloak-utils/index.mjs",
+            "default": "./dist/keycloak-utils/index.js"
         },
         "./keycloak-js": {
-            "module": "./dist/esm/keycloak-js.mjs",
-            "import": "./dist/esm/keycloak-js.mjs",
-            "default": "./dist/keycloak-js.js"
+            "module": "./dist/esm/keycloak-js/index.mjs",
+            "import": "./dist/esm/keycloak-js/index.mjs",
+            "default": "./dist/keycloak-js/index.js"
         },
         "./keycloak-js-authz": {
             "module": "./dist/esm/keycloak-js-authz.mjs",

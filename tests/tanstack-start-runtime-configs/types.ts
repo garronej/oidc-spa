@@ -5,9 +5,9 @@ import type {
     Oidc_server,
     OidcFnMiddleware,
     OidcRequestMiddleware
-} from "../../src/tanstack-start/react/types";
-import { oidcSpa } from "../../src/tanstack-start/react/oidcSpa";
-import type { OidcSpa } from "../../src/tanstack-start/react/oidcSpa";
+} from "../../src/tanstack-start-react/types";
+import { oidcSpa } from "../../src/tanstack-start-react/oidcSpa";
+import type { OidcSpa } from "../../src/tanstack-start-react/oidcSpa";
 import { tanstackStartRuntimeConfigsEnvPolicy } from "../../src/vite-plugin/tanstack-start/handleTanstackStartRuntimeConfigs";
 import { assert, type Equals } from "../../src/tools/tsafe/assert";
 

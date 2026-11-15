@@ -15,10 +15,30 @@ test("packaged plugin builds a cold-start-safe runtime config environment endpoi
     const root = await mkdtemp(path.join(tmpdir(), "oidc-spa-env-integration-"));
     t.after(() => rm(root, { recursive: true, force: true }));
     console.log(`Integration fixture: ${root}`);
-    for (const name of ["src", "public", "package.json", "tsconfig.json"]) {
+    for (const name of ["public", "package.json", "tsconfig.json"]) {
         await cp(path.join(example, name), path.join(root, name), { recursive: true });
     }
-    // Keep the fixture independent of the example's optional browser devtools.
+    // Keep the fixture on the current public API, independent of the example's UI.
+    await mkdir(path.join(root, "src/routes"), { recursive: true });
+    await writeFile(
+        path.join(root, "src/router.tsx"),
+        `
+        import { createRouter } from "@tanstack/react-router";
+        import { routeTree } from "./routeTree.gen";
+        export const getRouter = () => createRouter({ routeTree });
+    `
+    );
+    await writeFile(
+        path.join(root, "src/routes/index.tsx"),
+        `
+        import { createFileRoute } from "@tanstack/react-router";
+        import { useOidc } from "../oidc";
+        export const Route = createFileRoute("/")({ component: () => {
+            const { isUserLoggedIn } = useOidc();
+            return <p>{String(isUserLoggedIn)}</p>;
+        } });
+    `
+    );
     await writeFile(
         path.join(root, "src/routes/__root.tsx"),
         `
@@ -33,7 +53,7 @@ test("packaged plugin builds a cold-start-safe runtime config environment endpoi
     await writeFile(
         path.join(root, "src/oidc.ts"),
         `
-        import { oidcSpa } from "oidc-spa/react-tanstack-start";
+        import { oidcSpa } from "oidc-spa/tanstack-start-react";
         export const { useOidc, getOidc, enforceLogin, oidcFnMiddleware, oidcRequestMiddleware } = oidcSpa
             .withClientUser(({ idTokenClaims }) => ({
                 displayName: idTokenClaims.sub, canSeeKeycloakAdminNavigation: true
@@ -86,12 +106,11 @@ test("packaged plugin builds a cold-start-safe runtime config environment endpoi
         import { defineConfig } from "vite";
         import { tanstackStart } from "@tanstack/react-start/plugin/vite";
         import viteReact from "@vitejs/plugin-react";
-        import tailwindcss from "@tailwindcss/vite";
         import { nitro } from "nitro/vite";
         import { oidcSpa } from "oidc-spa/vite-plugin";
         export default defineConfig({
             resolve: { tsconfigPaths: true, alias: ${JSON.stringify(aliases)} },
-            plugins: [nitro(), tailwindcss(), tanstackStart(), oidcSpa(), viteReact()]
+            plugins: [nitro(), tanstackStart(), oidcSpa(), viteReact()]
         });
     `
     );
@@ -211,7 +230,7 @@ test("packaged plugin builds a cold-start-safe runtime config environment endpoi
 
 test("packaged plugin refreshes the manifest in Vite 8 with nested API directories", async t => {
     const repository = fileURLToPath(new URL("../../", import.meta.url));
-    const example = path.join(repository, "examples/tanstack-start-next");
+    const example = path.join(repository, "examples/tanstack-start");
     const { createServer } = await import(
         pathToFileURL(path.join(example, "node_modules/vite/dist/node/index.js")).href
     );
@@ -221,7 +240,7 @@ test("packaged plugin refreshes the manifest in Vite 8 with nested API directori
     const root = await mkdtemp(path.join(tmpdir(), "oidc-spa-env-vite8-"));
     t.after(() => rm(root, { recursive: true, force: true }));
     const configSource = name => `
-        import { oidcSpa } from "oidc-spa/react-tanstack-start";
+        import { oidcSpa } from "oidc-spa/tanstack-start-react";
         oidcSpa.withClientUser(() => ({})).withRuntimeConfigs(({ process }) => ({
             mode: "mock", client: { clientId_mock: process.env.${name} }
         })).createUtils();

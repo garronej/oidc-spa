@@ -7,8 +7,8 @@ import {
     type Oidc,
     type Oidc_react,
     type RuntimeConfigs
-} from "../../src/react-nextjs";
-import { oidcSpa as oidcSpa_react, type OidcSpaUtils as OidcSpaUtils_react } from "../../src/react-spa";
+} from "../../src/nextjs";
+import { oidcSpa as oidcSpa_react, type OidcSpaUtils as OidcSpaUtils_react } from "../../src/react";
 import { assert, type Equals } from "../../src/tools/tsafe/assert";
 
 type User = { displayName: string };

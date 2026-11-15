@@ -62,11 +62,11 @@ export default function HomePage() {
                             <a href={`${sourceUrl}/lib/oidc.tsx`}>
                                 <code>lib/oidc.tsx</code>
                             </a>{" "}
-                            uses <code>oidc-spa/react-nextjs</code>. <code>withUser()</code> maps token
-                            claims to <code>User_client</code>, the profile returned by{" "}
-                            <code>useOidc()</code>: a display name, email, avatar, and admin navigation
-                            flag. <code>createUtils()</code> exports the hooks, initialization gate, and
-                            login guard used by the UI.
+                            uses <code>oidc-spa/nextjs</code>. <code>withUser()</code> maps token claims
+                            to <code>User_client</code>, the profile returned by <code>useOidc()</code>:
+                            a display name, email, avatar, and admin navigation flag.{" "}
+                            <code>createUtils()</code> exports the hooks, initialization gate, and login
+                            guard used by the UI.
                         </p>
                     </li>
                     <li>

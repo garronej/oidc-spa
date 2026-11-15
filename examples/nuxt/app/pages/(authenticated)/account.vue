@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ requiresAuth: true, layout: "authenticated" });
-import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak";
+import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
 import { useOidc } from "../../oidc";
 
 const { user, issuerUri, clientId, validRedirectUri, startAuthorization, authorizationResult } = useOidc(

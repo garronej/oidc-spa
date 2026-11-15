@@ -150,7 +150,7 @@ for (const method of ["offline JWT validation", "introspection endpoint"]) {
             await writeFile(
                 join(fixture, "src/oidc.ts"),
                 `
-        import { oidcSpa } from "oidc-spa/react-tanstack-start";
+        import { oidcSpa } from "oidc-spa/tanstack-start-react";
         export let runtimeConfigCalls = 0;
         export const { oidcFnMiddleware, oidcRequestMiddleware } = oidcSpa
             .withClientUser(({ idTokenClaims }) => ({ id: idTokenClaims.sub }))

@@ -51,9 +51,9 @@ export default function HomePage() {
                             <a href={`${sourceUrl}/app/oidc.ts`}>
                                 <code>app/oidc.ts</code>
                             </a>{" "}
-                            uses <code>oidc-spa/react-spa</code>. <code>withUser()</code> maps token
-                            claims to a display name, email, avatar, and admin navigation flag.
-                            Components receive that model through <code>useOidc()</code>.
+                            uses <code>oidc-spa/react</code>. <code>withUser()</code> maps token claims
+                            to a display name, email, avatar, and admin navigation flag. Components
+                            receive that model through <code>useOidc()</code>.
                         </p>
                     </li>
                     <li>

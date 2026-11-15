@@ -53,10 +53,10 @@ export function manageOptimizedDeps(params: {
         case "react-router-framework":
             {
                 const moduleNames_include = [
-                    "oidc-spa/react-spa",
+                    "oidc-spa/react",
                     "oidc-spa/entrypoint",
-                    "oidc-spa/keycloak",
-                    "oidc-spa/core",
+                    "oidc-spa/keycloak-utils",
+                    "oidc-spa/client",
                     "oidc-spa/decode-jwt",
                     "oidc-spa/DPoP",
                     "oidc-spa/browser-runtime-freeze",

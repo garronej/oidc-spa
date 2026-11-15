@@ -10,26 +10,26 @@ import type {
     Oidc,
     TanStackRouterLoaderContextLike
 } from "./types";
-import { OidcInitializationError } from "../../core/OidcInitializationError";
-import { Deferred } from "../../tools/Deferred";
-import { isBrowser } from "../../tools/isBrowser";
-import { assert, type Equals, is } from "../../tools/tsafe/assert";
-import { createStatefulEvt, type StatefulReadonlyEvt, type StatefulEvt } from "../../tools/StatefulEvt";
-import { id } from "../../tools/tsafe/id";
-import type { OptionallyAsyncGetterOrDirectValue } from "../../tools/GetterOrDirectValue";
+import { OidcInitializationError } from "../core/OidcInitializationError";
+import { Deferred } from "../tools/Deferred";
+import { isBrowser } from "../tools/isBrowser";
+import { assert, type Equals, is } from "../tools/tsafe/assert";
+import { createStatefulEvt, type StatefulReadonlyEvt, type StatefulEvt } from "../tools/StatefulEvt";
+import { id } from "../tools/tsafe/id";
+import type { OptionallyAsyncGetterOrDirectValue } from "../tools/GetterOrDirectValue";
 import { createServerFn, createMiddleware } from "@tanstack/react-start";
 // @ts-expect-error: Since our module is not labeled as ESM we don't have the types here.
 import { getRequest, setResponseHeader, setResponseStatus } from "@tanstack/react-start/server";
 //import { getRequest, setResponseHeader, setResponseStatus } from "@tanstack/react-start-server";
-import { toFullyQualifiedUrl } from "../../tools/toFullyQualifiedUrl";
-import { getBASE_URL_earlyInit } from "../../core/earlyInit_BASE_URL";
+import { toFullyQualifiedUrl } from "../tools/toFullyQualifiedUrl";
+import { getBASE_URL_earlyInit } from "../core/earlyInit_BASE_URL";
 import { BEFORE_LOAD_FN_BRAND_PROPERTY_NAME } from "./disableSsrIfLoginEnforced";
-import type { MaybeAsync } from "../../tools/MaybeAsync";
-import { enableStateDataCookie } from "../../core/StateDataCookie";
-import { createObjectThatThrowsIfAccessed } from "../../tools/createObjectThatThrowsIfAccessed";
+import type { MaybeAsync } from "../tools/MaybeAsync";
+import { enableStateDataCookie } from "../core/StateDataCookie";
+import { createObjectThatThrowsIfAccessed } from "../tools/createObjectThatThrowsIfAccessed";
 import { publicEnvNames, toRedactEnvNames } from "virtual:oidc-spa/tanstack-start-public-env";
-import { ValidateAndGetAccessTokenClaims } from "../../server";
-import * as runExclusive from "../../tools/run-exclusive";
+import type { ValidateAndGetAccessTokenClaims } from "../server";
+import * as runExclusive from "../tools/run-exclusive";
 
 export function createUtils<User_client, User_server>(params: {
     createClientUser: CreateClientUser<User_client>;
@@ -187,7 +187,7 @@ export function createUtils<User_client, User_server>(params: {
                 switch (runtimeConfigs.mode) {
                     case "mock":
                         {
-                            const { createMockOidc } = await import("../../core/createMockOidc");
+                            const { createMockOidc } = await import("../core/createMockOidc");
 
                             const oidc = await createMockOidc<User_client>({
                                 createUser_mock: params =>
@@ -225,7 +225,7 @@ export function createUtils<User_client, User_server>(params: {
                         {
                             enableStateDataCookie();
 
-                            const { createOidc } = await import("../../core");
+                            const { createOidc } = await import("../core");
 
                             let oidc: Oidc<User_client>;
 
@@ -984,7 +984,7 @@ export function createUtils<User_client, User_server>(params: {
                     case "real": {
                         assert("server" in runtimeConfigs);
 
-                        const { oidcSpa: oidcSpa_server } = await import("../../server");
+                        const { oidcSpa: oidcSpa_server } = await import("../server");
 
                         const { validateAndGetAccessTokenClaims } = oidcSpa_server
                             .withRuntimeConfigs({
@@ -1047,7 +1047,7 @@ export function createUtils<User_client, User_server>(params: {
 
                     const accessToken_mock =
                         runtimeConfigs_mock.accessToken_mock ??
-                        id<typeof import("../../core/createMockOidc").ACCESS_TOKEN_MOCK_DEFAULT>(
+                        id<typeof import("../core/createMockOidc").ACCESS_TOKEN_MOCK_DEFAULT>(
                             "mocked-access-token"
                         );
 
@@ -1104,7 +1104,7 @@ export function createUtils<User_client, User_server>(params: {
                 })();
 
                 const { extractRequestAuthContext } = await import(
-                    "../../server/extractRequestAuthContext"
+                    "../server/extractRequestAuthContext"
                 );
 
                 const requestAuthContext = extractRequestAuthContext({

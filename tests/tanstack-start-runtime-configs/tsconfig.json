@@ -6,7 +6,7 @@
     },
     "include": [
         "types.ts",
-        "../../src/tanstack-start/react/publicEnv.d.ts",
+        "../../src/tanstack-start-react/publicEnv.d.ts",
         "../../scripts/tests/tanstack-start-runtime-configs.test.ts"
     ]
 }

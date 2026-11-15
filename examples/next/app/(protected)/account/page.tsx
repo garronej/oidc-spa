@@ -1,6 +1,6 @@
 "use client";
 
-import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak";
+import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
 import { useOidc } from "@/lib/oidc";
 
 export default function AccountPage() {

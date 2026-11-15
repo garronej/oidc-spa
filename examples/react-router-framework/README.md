@@ -54,7 +54,7 @@ bootstrap output fails explicitly. Executable HTML attributes and active embedde
 documents in the document shell should instead live inside the initialized app;
 the plugin rejects shells that could execute code before its bootstrap.
 
-`app/oidc.ts` uses `oidc-spa/react-spa`, maps claims to the application's user model,
+`app/oidc.ts` uses `oidc-spa/react`, maps claims to the application's user model,
 and configures the browser's OIDC client. `app/routes.ts` groups protected pages
 under the pathless `app/routes/protected/layout.tsx` layout, without changing their
 URLs. Its `clientMiddleware` calls `enforceLogin(args)` before child loaders and

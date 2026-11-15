@@ -44,7 +44,7 @@ export default defineConfig({ base:${JSON.stringify(
             }
         }),
         "ui/routes.ts": `import {index,route} from "@react-router/dev/routes"; export default [index("routes/home.tsx"),route("todo","routes/todo.tsx")];`,
-        "ui/oidc.ts": `import {oidcSpa} from "oidc-spa/react-spa";
+        "ui/oidc.ts": `import {oidcSpa} from "oidc-spa/react";
 export const {OidcInitializationGate,getOidc}=oidcSpa.withUser(()=>({name:"fixture"})).withRuntimeConfigs({mode:"mock",isUserInitiallyLoggedIn:true}).createUtils();`,
         "ui/dependency.ts": `if(typeof window!=="undefined"){
 const protectedRuntime=Object.getOwnPropertyDescriptor(window,"fetch")?.configurable===false;

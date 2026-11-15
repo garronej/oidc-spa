@@ -45,7 +45,7 @@ application code, enables browser runtime protection and DPoP, and can skip load
 application code in the auth-response iframe. `src/main.tsx` wraps `BrowserRouter`
 in `OidcInitializationGate`.
 
-`src/oidc.ts` uses `oidc-spa/react-spa`, maps token claims to `User_client`, and
+`src/oidc.ts` uses `oidc-spa/react`, maps token claims to `User_client`, and
 configures the browser client.
 
 `src/App.tsx` declares the routes with `Routes` and `Route`. A pathless route groups

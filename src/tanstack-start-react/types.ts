@@ -7,11 +7,11 @@ import type {
     Oidc,
     OidcTokens,
     AutoLogoutState
-} from "../../core";
+} from "../core";
 import type { FunctionMiddlewareAfterServer, RequestMiddlewareAfterServer } from "@tanstack/react-start";
-import type { MaybeAsync } from "../../tools/MaybeAsync";
-import { assert, type Equals } from "../../tools/tsafe/assert";
-import type { AccessTokenClaims_specs as AccessTokenClaims } from "../../server";
+import type { MaybeAsync } from "../tools/MaybeAsync";
+import { assert, type Equals } from "../tools/tsafe/assert";
+import type { AccessTokenClaims_specs as AccessTokenClaims } from "../server";
 
 export type { IdTokenClaims, OidcProviderMetadata, OidcUserInfo, OidcTokens, Oidc, AutoLogoutState };
 export type { AccessTokenClaims };

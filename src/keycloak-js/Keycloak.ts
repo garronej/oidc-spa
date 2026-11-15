@@ -12,16 +12,16 @@ import type {
     KeycloakRegisterOptions,
     KeycloakAccountOptions
 } from "./types";
-import { assert, is } from "../../tools/tsafe/assert";
-import { isAmong } from "../../tools/tsafe/isAmong";
-import { createOidc, type Oidc, type OidcTokens } from "../../core";
-import { Deferred } from "../../tools/Deferred";
-import { decodeJwt } from "../../tools/decodeJwt";
-import { type KeycloakUtils, createKeycloakUtils } from "../keycloakUtils";
-import { type StatefulEvt, createStatefulEvt } from "../../tools/StatefulEvt";
-import { readExpirationTimeInJwt } from "../../tools/readExpirationTimeInJwt";
-import { toFullyQualifiedUrl } from "../../tools/toFullyQualifiedUrl";
-import { getBASE_URL_earlyInit } from "../../core/earlyInit_BASE_URL";
+import { assert, is } from "../tools/tsafe/assert";
+import { isAmong } from "../tools/tsafe/isAmong";
+import { createOidc, type Oidc, type OidcTokens } from "../core";
+import { Deferred } from "../tools/Deferred";
+import { decodeJwt } from "../tools/decodeJwt";
+import { type KeycloakUtils, createKeycloakUtils } from "../keycloak-utils/keycloakUtils";
+import { type StatefulEvt, createStatefulEvt } from "../tools/StatefulEvt";
+import { readExpirationTimeInJwt } from "../tools/readExpirationTimeInJwt";
+import { toFullyQualifiedUrl } from "../tools/toFullyQualifiedUrl";
+import { getBASE_URL_earlyInit } from "../core/earlyInit_BASE_URL";
 
 type ConstructorParams = KeycloakServerConfig & {
     /**

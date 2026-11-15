@@ -13,8 +13,8 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/blob/main/examples/fr
             store.
         </p>
         <p class="guide-note">
-            This example uses <code>oidc-spa/framework-agnostic</code>. The Vue integration lives in this
-            app's <code>src/oidc.ts</code>, showing how to connect a framework to the adapter.
+            This example uses <code>oidc-spa/client</code>. The Vue integration lives in this app's
+            <code>src/oidc.ts</code>, showing how to connect a framework to the adapter.
         </p>
         <div class="example-links">
             <RouterLink to="/todo-list-trpc">

@@ -1,6 +1,6 @@
 import { createElement, useEffect, useReducer, type ReactNode, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import type { OidcSpaUtils } from "../react-spa";
+import type { OidcSpaUtils } from "../react";
 
 export function adaptOidcSpaUtils<User>(utils: OidcSpaUtils<User>): OidcSpaUtils<User> {
     const { OidcInitializationGate: OidcInitializationGate_base, getOidc } = utils;

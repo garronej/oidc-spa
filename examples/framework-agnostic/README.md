@@ -1,7 +1,7 @@
 # Framework-agnostic adapter — Vue example
 
 The same todo app as `examples/tanstack-router`, implemented with Vue and Vue Router.
-It uses `oidc-spa/framework-agnostic`; all Vue-specific authentication utilities are
+It uses `oidc-spa/client`; all Vue-specific authentication utilities are
 implemented locally in `src/oidc.ts`.
 
 ## Run locally

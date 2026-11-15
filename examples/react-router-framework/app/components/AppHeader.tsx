@@ -1,5 +1,5 @@
 import { Link, NavLink } from "react-router";
-import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak";
+import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
 import { useOidc } from "~/oidc";
 
 export function AppHeader() {

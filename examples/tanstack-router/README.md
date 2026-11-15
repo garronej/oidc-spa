@@ -45,7 +45,7 @@ runs early initialization before application code, enables browser runtime
 protection and DPoP, and skips loading the app in the auth-response iframe when
 appropriate. `src/main.tsx` wraps the router in `OidcInitializationGate`.
 
-`src/oidc.ts` uses `oidc-spa/react-spa`, maps token claims to `User_client`, and
+`src/oidc.ts` uses `oidc-spa/react`, maps token claims to `User_client`, and
 configures the browser client. `src/routes/_authenticated/route.tsx` protects its
 children with one `beforeLoad: enforceLogin` and mounts `AutoLogoutWarningOverlay`.
 The pathless layout leaves URLs unchanged. The header stays in the root.

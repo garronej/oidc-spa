@@ -1,4 +1,4 @@
-import { oidcSpa } from "oidc-spa/react-spa";
+import { oidcSpa } from "oidc-spa/react";
 import { z } from "zod";
 import { decodeJwt } from "oidc-spa/decode-jwt";
 import { href } from "react-router";

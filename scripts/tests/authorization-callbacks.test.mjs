@@ -55,7 +55,7 @@ const callbackSource = await bundle(
     export * from "./src/core/StateDataCookie";
     export { oidcEarlyInit } from "./src/core/earlyInit";
     export { getRootRelativeOriginalLocationHref_earlyInit } from "./src/core/earlyInit_rootRelativeOriginalLocationHref";
-    export { __withOidcSpaServerEntry } from "./src/tanstack-start/react/withOidcSpaServerEntry";
+    export { __withOidcSpaServerEntry } from "./src/tanstack-start-react/withOidcSpaServerEntry";
 `,
     {
         "./earlyInit_prModuleCreateOidc": `export const prModuleCreateOidc = Promise.resolve({
