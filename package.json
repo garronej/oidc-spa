@@ -13,7 +13,7 @@
         "test:authorization-callbacks": "node --test scripts/tests/authorization-callbacks.test.mjs",
         "test:vite-plugin-handlers": "node --test scripts/tests/vite-plugin-handlers.test.mjs",
         "test:react-router-bootstrap": "node --test scripts/tests/react-router-bootstrap.test.mjs scripts/tests/react-router-bootstrap.integration.mjs",
-        "test:react-nextjs": "tsc --project tests/react-nextjs/tsconfig.json",
+        "test:react-nextjs": "tsc --project tests/react-nextjs/tsconfig.json && node --test scripts/tests/nextjs-plugin.test.mjs",
         "test:framework-agnostic": "node --test scripts/tests/framework-agnostic.test.mjs && tsc --project tests/framework-agnostic/tsconfig.json",
         "test:vue": "node --test scripts/tests/vue.test.mjs && vue-tsc --project tests/vue/tsconfig.json",
         "test:tanstack-start-runtime-configs": "tsx scripts/tests/tanstack-start-runtime-configs.test.ts && tsc --project tests/tanstack-start-runtime-configs/tsconfig.json",
@@ -161,7 +161,9 @@
     "publishConfig": {
         "access": "public"
     },
-    "sideEffects": false,
+    "sideEffects": [
+        "**/nextjs-plugin/client.*"
+    ],
     "main": "dist/entrypoint.js",
     "types": "dist/entrypoint.d.ts",
     "module": "dist/esm/entrypoint.mjs",
@@ -261,6 +263,24 @@
             "module": "./dist/esm/decode-jwt.mjs",
             "import": "./dist/esm/decode-jwt.mjs",
             "default": "./dist/decode-jwt.js"
+        },
+        "./nextjs-plugin": {
+            "types": "./dist/esm/nextjs-plugin/index.d.ts",
+            "module": "./dist/esm/nextjs-plugin/index.mjs",
+            "import": "./dist/esm/nextjs-plugin/index.mjs",
+            "default": "./dist/esm/nextjs-plugin/index.mjs"
+        },
+        "./nextjs-plugin/client": {
+            "types": "./dist/esm/nextjs-plugin/client.d.ts",
+            "module": "./dist/esm/nextjs-plugin/client.mjs",
+            "import": "./dist/esm/nextjs-plugin/client.mjs",
+            "default": "./dist/esm/nextjs-plugin/client.mjs"
+        },
+        "./nextjs-plugin/proxy": {
+            "types": "./dist/esm/nextjs-plugin/proxy.d.ts",
+            "module": "./dist/esm/nextjs-plugin/proxy.mjs",
+            "import": "./dist/esm/nextjs-plugin/proxy.mjs",
+            "default": "./dist/esm/nextjs-plugin/proxy.mjs"
         }
     }
 }

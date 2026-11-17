@@ -2,15 +2,36 @@
 
 export * from "../react";
 import { oidcSpa as oidcSpa_react } from "../react";
-import type { OidcSpa } from "../react/oidcSpa";
-import { adaptOidcSpaUtils } from "./adaptOidcSpaUtils";
+import type { OidcSpa as OidcSpa_react } from "../react/oidcSpa";
+import type { OidcSpaUtils as OidcSpaUtils_react } from "../react";
+import { enableStateDataCookie } from "../core/StateDataCookie";
 
-type CompleteBuilder = typeof oidcSpa_react & OidcSpa<unknown, "withUser" | "withRuntimeConfigs">;
+export type OidcSpaUtils<User> = Omit<OidcSpaUtils_react<User>, "enforceLogin">;
 
-function adaptBuilder<Builder>(builder: Builder): Builder {
-    // React hides already-used methods in its types but keeps them at runtime.
-    // Preserve the original builder type, including generic inference and chaining.
-    const builder_base = builder as Builder & CompleteBuilder;
+type OidcSpa<User, Excluded extends "withUser" | "withRuntimeConfigs" = never> = Omit<
+    {
+        withUser: <User>(
+            ...args: Parameters<typeof oidcSpa_react.withUser<User>>
+        ) => OidcSpa<User, Excluded | "withUser">;
+    },
+    Excluded
+> &
+    ("withUser" extends Excluded
+        ? {
+              withRuntimeConfigs: (
+                  ...args: Parameters<OidcSpa_react<User, "withUser">["withRuntimeConfigs"]>
+              ) => OidcSpa<User, Excluded | "withRuntimeConfigs">;
+          }
+        : {}) &
+    ("withRuntimeConfigs" extends Excluded ? { createUtils: () => OidcSpaUtils<User> } : {});
+
+type CompleteBuilder = typeof oidcSpa_react & OidcSpa_react<unknown, "withUser" | "withRuntimeConfigs">;
+
+function adaptBuilder<User, Excluded extends "withUser" | "withRuntimeConfigs">(
+    builder: OidcSpa_react<User, Excluded>
+): OidcSpa<User, Excluded> {
+    // Used builder methods remain present at runtime even when their types hide them.
+    const builder_base = builder as unknown as CompleteBuilder;
 
     return {
         ...builder,
@@ -18,8 +39,12 @@ function adaptBuilder<Builder>(builder: Builder): Builder {
             adaptBuilder(builder_base.withUser(...args)),
         withRuntimeConfigs: (...args: Parameters<CompleteBuilder["withRuntimeConfigs"]>) =>
             adaptBuilder(builder_base.withRuntimeConfigs(...args)),
-        createUtils: () => adaptOidcSpaUtils(builder_base.createUtils())
-    };
+        createUtils: () => {
+            enableStateDataCookie();
+            const { enforceLogin, ...utils } = builder_base.createUtils();
+            return utils;
+        }
+    } as OidcSpa<User, Excluded>;
 }
 
 export const oidcSpa = adaptBuilder(oidcSpa_react);

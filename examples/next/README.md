@@ -4,10 +4,11 @@ A minimal Next.js App Router port of `examples/tanstack-start`, with the same us
 provider choices, dark styling, and todo storage. The todo list has two implementations: tRPC and
 Next.js Route Handlers with ordinary `fetch`.
 
-Next.js acts as a SPA framework with a backend in the same project. Authentication and session
-restoration happen in the browser, and the entire UI waits for them before rendering. Page rendering
-on the server has no access to that browser session; authenticated data is loaded through browser
-requests to the backend.
+Next.js renders public content on the server, with a backend in the same project. Authentication and
+session restoration happen in the browser. Initialization gates surround the authentication-dependent
+header controls and protected pages, so public content can render immediately. Page rendering on the
+server has no access to that browser session; authenticated data is loaded through browser requests
+to the backend.
 
 Browser authentication and backend token validation are configured independently. The included backend
 uses `oidc-spa/server`, but the browser integration can also call an existing API with its own token
@@ -41,14 +42,27 @@ To use local oidc-spa source, run `yarn start-next-example` from the repository 
 
 ## Integration
 
--   `instrumentation-client.ts` calls `oidcEarlyInit()` before the app becomes interactive, with DPoP
-    enabled.
+-   `next.config.ts` uses `withOidcSpa` from `oidc-spa/nextjs-plugin` to inject `oidcEarlyInit()`
+    before React hydration, with DPoP and browser runtime freeze enabled. The plugin derives the
+    initialization base URL from Next's `basePath` and excludes `Array` from freezing because Next
+    modifies its RSC chunk queue. With a `basePath` and Next's default `trailingSlash: false`, it also
+    disables automatic trailing-slash redirects to preserve the OIDC callback URL's required trailing
+    slash. This requires Next.js 16.3 or later; no `instrumentation-client.ts` file is needed.
+-   The plugin generates and ignores `proxy.ts`, including its callback matcher, during development
+    and production builds. No proxy file needs to be maintained in the example. The handler uses the matching
+    OIDC state cookie to fetch the return destination and stream its response back, so Next renders
+    both the page and its router state using the destination URL while the browser still receives
+    the callback URL. This adds one server-side HTTP request per authentication callback. Early
+    initialization consumes the callback and restores the destination before hydration. The cookie contains routing information, not
+    credentials; this proxy does not authenticate requests.
 -   `lib/oidc.tsx` uses `oidc-spa/nextjs` to define `User_client` with `withUser()`, configure
     providers with `withRuntimeConfigs()`, and export typed hooks and App Router login helpers.
--   `app/layout.tsx` wraps the entire UI in one `OidcInitializationGate`: the header, all pages,
-    and the session warning. It renders no application content until browser auth is ready.
--   `app/(protected)/layout.tsx` uses `withLoginEnforced` to require sign-in for the todo, admin,
-    and account pages. The home and inactivity logout pages are public and use the same root initialization gate.
+-   `app/layout.tsx` renders the public layout without a root gate. `components/AppHeader.tsx`
+    places gates around its auth controls and admin navigation. Active links use ordinary
+    `usePathname()`, with matching server and client values when returning from authentication.
+-   `app/(protected)/layout.tsx` places an `OidcInitializationGate` around `withLoginEnforced` to
+    require sign-in for the todo, admin, and account pages. This keeps components using `useOidc()`
+    on the client. The home and inactivity logout pages remain outside these gates.
 -   `autoLogout_returnToUrl` in `lib/oidc.tsx` sends users to `/inactivity-logout` after automatic
     logout, saving their previous URL in `return_url`. The resume link returns to that URL;
     the protected layout starts sign-in when needed.
@@ -58,6 +72,8 @@ To use local oidc-spa source, run `yarn start-next-example` from the repository 
     `User_server` model. Both user models match the TanStack Start example. The optional `roles` array grants admin access
     when it contains `admin`. Authentication failures throw a transport-neutral `AuthError` with an
     HTTP status; token validation failures preserve the status suggested by oidc-spa.
+    `extractRequestAuthContext` handles Next's removal of `basePath` from Route Handler requests
+    when reconstructing the public URL for DPoP validation.
 -   `lib/server/trpc.ts` provides authenticated `todos.list` / `todos.add` procedures and admin-only
     `todos.listAllUserTodos` / `todos.delete` procedures. Each handler passes `ctx.req` to `getUser(req)`;
     oidc-spa shares validation within each request, including batches. Both admin procedures check
@@ -70,6 +86,34 @@ To use local oidc-spa source, run `yarn start-next-example` from the repository 
 
 Browser login guards and admin navigation are UI concerns; the API validates and authorizes every
 request independently. `server-only` marks backend modules to prevent accidental client imports.
+
+### Using an existing proxy
+
+Rename an existing `proxy.ts` to `my-proxy.ts`, keeping its handler and literal `config` export in
+that file. Reference it from the plugin options:
+
+```ts
+export default withOidcSpa(nextConfig, {
+    proxy: "./my-proxy.ts",
+    browserRuntimeFreeze: { enabled: true },
+    DPoP: { enabled: true, mode: "auto" }
+});
+```
+
+The plugin accepts a named `proxy` export or a default export. It reads the custom module's matcher
+and regions, then generates the combined proxy configuration. On callbacks, the forwarded destination
+request runs the custom proxy once, when its original matcher applies. Next handles its redirects,
+rewrites, direct responses, headers, cookies, and request-header overrides normally. The outer callback
+response is private and is not cached.
+
+Custom handler edits reload normally, and matcher edits regenerate the proxy during development.
+User-owned proxy and middleware files are never overwritten. Generated files are written only when
+their content changes and their paths are added to `.gitignore` and `.prettierignore`. Their header
+explains how to configure a custom proxy and disables ESLint, TypeScript checking, and IDE inspections.
+Source generation does not run
+during `next start`. For projects under `src`, the generated proxy is placed there; custom
+`pageExtensions` are respected. If Next is invoked from outside the app directory, set `projectRoot`
+in the plugin options to the app directory.
 
 `withRuntimeConfigs()` accepts a configuration object, a synchronous getter, or an asynchronous
 getter. Supply settings from whichever source suits your application. This example uses environment

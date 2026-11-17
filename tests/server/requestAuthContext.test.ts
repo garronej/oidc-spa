@@ -30,16 +30,17 @@ test("request authentication memoization preserves DPoP replay protection", asyn
     });
 
     function validator(issuer = issuerUri) {
-        const { bootstrapAuth, validateAndGetAccessTokenClaims } = oidcSpa.createUtils();
-        bootstrapAuth({
-            mode: "real",
-            issuerUri: issuer,
-            accessTokenValidation: {
-                method: "introspection endpoint",
-                clientId: "api",
-                clientSecret: "test-secret"
-            }
-        });
+        const { validateAndGetAccessTokenClaims } = oidcSpa
+            .withRuntimeConfigs({
+                mode: "real",
+                issuerUri: issuer,
+                accessTokenValidation: {
+                    method: "introspection endpoint",
+                    clientId: "api",
+                    clientSecret: "test-secret"
+                }
+            })
+            .createUtils();
         return validateAndGetAccessTokenClaims;
     }
 

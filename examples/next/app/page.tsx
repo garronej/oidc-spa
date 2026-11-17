@@ -11,9 +11,10 @@ export default function HomePage() {
                 the backend validates access tokens and gives your handlers a typed user.
             </p>
             <p>
-                Next.js serves as a SPA framework here, with the frontend and backend in one project. The
-                whole UI waits for browser auth to initialize. Server-rendered pages do not have access
-                to the browser session; authenticated data comes from browser requests.
+                Next.js renders public content on the server, with the frontend and backend in one
+                project. Only authentication-dependent components wait for browser auth to initialize.
+                Server-rendered pages do not have access to the browser session; authenticated data comes
+                from browser requests.
             </p>
             <p>
                 Browser authentication and API token validation are configured independently. The
@@ -43,17 +44,14 @@ export default function HomePage() {
                     <li>
                         <h3>Initialize auth before rendering the app</h3>
                         <p>
-                            <a href={`${sourceUrl}/instrumentation-client.ts`}>
-                                <code>instrumentation-client.ts</code>
+                            <a href={`${sourceUrl}/next.config.ts`}>
+                                <code>next.config.ts</code>
                             </a>{" "}
-                            calls <code>oidcEarlyInit()</code> with DPoP. Next.js runs this entry before
-                            the application becomes interactive. In{" "}
-                            <a href={`${sourceUrl}/app/layout.tsx`}>
-                                <code>app/layout.tsx</code>
-                            </a>
-                            , a single <code>OidcInitializationGate</code> wraps the header, every page,
-                            and the session warning. It keeps the UI hidden until initialization and any
-                            session restoration finish.
+                            uses <code>withOidcSpa</code> from <code>oidc-spa/nextjs-plugin</code> to
+                            inject early initialization with DPoP and browser runtime freeze before
+                            hydration. It also generates the callback proxy, making Next render the
+                            return destination after login to match the URL restored by early
+                            initialization. No client instrumentation or proxy setup is needed.
                         </p>
                     </li>
                     <li>
@@ -111,9 +109,10 @@ export default function HomePage() {
                             <a href={`${sourceUrl}/app/(protected)/layout.tsx`}>
                                 protected route layout
                             </a>{" "}
-                            uses <code>withLoginEnforced</code> to require sign-in for the todo, admin,
-                            and account pages. The root initialization gate covers all routes, including
-                            the public home and inactivity logout pages. Backend requests are protected
+                            wraps <code>withLoginEnforced</code> in an{" "}
+                            <code>OidcInitializationGate</code> to require sign-in for the todo, admin,
+                            and account pages. The header gates its auth controls separately. Public
+                            content stays outside the gates. Backend requests are protected
                             independently.
                         </p>
                         <p>

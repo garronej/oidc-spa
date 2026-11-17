@@ -33,9 +33,10 @@ function parseStateDataCookie(params: { stateDataCookie_str: string }):
         return undefined;
     }
 
-    const rootRelativeReturnToUrl = decodeURIComponent(rest[0]);
+    let rootRelativeReturnToUrl: string;
 
     try {
+        rootRelativeReturnToUrl = decodeURIComponent(rest[0]);
         new URL(`http://localhost${rootRelativeReturnToUrl}`);
     } catch {
         return undefined;

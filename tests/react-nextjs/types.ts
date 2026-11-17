@@ -13,8 +13,8 @@ import { assert, type Equals } from "../../src/tools/tsafe/assert";
 
 type User = { displayName: string };
 
-assert<Equals<typeof oidcSpa, typeof oidcSpa_react>>;
-assert<Equals<OidcSpaUtils<User>, OidcSpaUtils_react<User>>>;
+assert<Equals<Parameters<typeof oidcSpa.withUser>, Parameters<typeof oidcSpa_react.withUser>>>;
+assert<Equals<OidcSpaUtils<User>, Omit<OidcSpaUtils_react<User>, "enforceLogin">>>;
 
 // Never invoked: exercise inference, overloads and builder ordering as a consumer.
 export async function checkTypes() {
@@ -46,6 +46,7 @@ export async function checkTypes() {
         assert<Equals<typeof user, User>>;
     }
 
+    // @ts-expect-error Next.js has no client route loaders
     utils.enforceLogin({ location: { href: "/private" }, cause: "enter" });
     const Guarded = utils.withLoginEnforced({
         component: (props: { greeting: string }) => props.greeting,

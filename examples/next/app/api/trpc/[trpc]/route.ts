@@ -3,7 +3,8 @@ import { appRouter } from "@/lib/server/trpc";
 
 function handler(req: Request) {
     return fetchRequestHandler({
-        endpoint: `${process.env.__NEXT_ROUTER_BASEPATH}/api/trpc`,
+        // Next.js removes basePath from the request URL passed to route handlers.
+        endpoint: "/api/trpc",
         req,
         router: appRouter,
         createContext: () => ({ req }),

@@ -7,6 +7,7 @@ import type { ValidateAndGetAccessTokenClaims } from "./types";
 export type AnyRequest =
     | AnyRequest.Unified
     | AnyRequest.RequestLike
+    | AnyRequest.NextJsRequestLike
     | AnyRequest.IncomingMessageLike
     | AnyRequest.HonoRequestLike
     | AnyRequest.FastifyRequestLike;
@@ -48,6 +49,10 @@ export namespace AnyRequest {
 
     assert<Request extends RequestLike ? true : false>;
 
+    export type NextJsRequestLike = RequestLike & {
+        nextUrl: { basePath: string };
+    };
+
     export type HonoRequestLike = {
         raw: RequestLike;
     };
@@ -73,8 +78,12 @@ function isRequest(req: AnyRequest): req is AnyRequest.RequestLike {
     if ("type" in req || "raw" in req || "socket" in req) {
         return false;
     }
-    assert<Equals<typeof req, AnyRequest.RequestLike>>;
+    assert<Equals<typeof req, AnyRequest.RequestLike | AnyRequest.NextJsRequestLike>>;
     return true;
+}
+
+function isNextJsRequest(req: AnyRequest): req is AnyRequest.NextJsRequestLike {
+    return "nextUrl" in req;
 }
 
 function isIncomingMessage(req: AnyRequest): req is AnyRequest.IncomingMessageLike {
@@ -108,6 +117,13 @@ function anyRequestToUnified(req: AnyRequest): AnyRequest.Unified {
 
     if (isRequest(req)) {
         const url = new URL(req.url);
+
+        if (isNextJsRequest(req) && req.nextUrl.basePath === "") {
+            // Next removes basePath before constructing Route Handler requests.
+            // Its compiler supplies the configured prefix; NextRequests whose
+            // nextUrl already has a basePath retain the full URL and need no correction.
+            url.pathname = `${process.env.__NEXT_ROUTER_BASEPATH ?? ""}${url.pathname}`;
+        }
 
         return {
             type: "unified",

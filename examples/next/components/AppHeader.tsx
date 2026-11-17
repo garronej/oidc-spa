@@ -4,11 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
-import { useOidc } from "@/lib/oidc";
+import { useOidc, OidcInitializationGate } from "@/lib/oidc";
 
 export function AppHeader() {
-    const { isUserLoggedIn, user } = useOidc();
-
     return (
         <header className="app-header">
             <div className="header-inner">
@@ -19,15 +17,26 @@ export function AppHeader() {
                     <AppNavLink href="/">Home</AppNavLink>
                     <AppNavLink href="/todo-list-trpc">Todos · tRPC</AppNavLink>
                     <AppNavLink href="/todo-list-api">Todos · API</AppNavLink>
-                    {isUserLoggedIn && user.canSeeAdminNavigation && (
-                        <AppNavLink href="/todo-list-admin">Admin</AppNavLink>
-                    )}
+                    <OidcInitializationGate>
+                        <AdminLink />
+                    </OidcInitializationGate>
                 </nav>
                 <div className="actions">
-                    <AuthButtons />
+                    <OidcInitializationGate>
+                        <AuthButtons />
+                    </OidcInitializationGate>
                 </div>
             </div>
         </header>
+    );
+}
+
+function AdminLink() {
+    const { isUserLoggedIn, user } = useOidc();
+
+    return (
+        isUserLoggedIn &&
+        user.canSeeAdminNavigation && <AppNavLink href="/todo-list-admin">Admin</AppNavLink>
     );
 }
 
