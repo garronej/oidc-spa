@@ -314,15 +314,6 @@ function handleOidcCallback(): {
 
     switch (stateData.context) {
         case "iframe":
-            if (parent !== top) {
-                const errorMessage = [
-                    "oidc-spa: Refusing to post the auth response from a nested iframe to prevent interception.",
-                    "For your app to work when rendered in an iframe, use sessionRestorationMethod: 'foreground redirect'."
-                ].join(" ");
-                alert(errorMessage);
-
-                throw new Error(errorMessage);
-            }
             parent.postMessage(
                 `${IFRAME_MESSAGE_PREFIX}${JSON.stringify(authResponse)}`,
                 location.origin
