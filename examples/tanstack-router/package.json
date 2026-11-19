@@ -16,7 +16,7 @@
         "@upstash/redis": "1.39.0",
         "dotenv": "18.0.9",
         "express": "5.3.0",
-        "oidc-spa": "11.0.0-rc.7",
+        "oidc-spa": "next",
         "react": "19.2.8",
         "react-dom": "19.2.8",
         "zod": "4.6.7"

@@ -39,8 +39,9 @@ function Home() {
                             </a>{" "}
                             registers the oidc-spa Vite plugin with browser runtime protection and DPoP.
                             Early initialization runs before application code, and can skip loading the
-                            app in the authentication callback iframe. In <code>src/main.tsx</code>, one{" "}
-                            <code>OidcInitializationGate</code> wraps the router.
+                            app in the authentication callback iframe. Public pages render while OIDC
+                            initializes, and the header checks <code>isOidcReady</code> before showing
+                            authentication controls.
                         </p>
                     </li>
                     <li>
@@ -84,14 +85,14 @@ function Home() {
                         <h3>Protect pages with a shared route</h3>
                         <p>
                             <code>src/routes/_authenticated/route.tsx</code> calls{" "}
-                            <code>enforceLogin</code> before its children load. It also mounts the
-                            inactivity warning overlay. The header stays in the root, while home and
-                            inactivity logout remain public. The layout adds no URL segment.
+                            <code>enforceLogin</code> before its children load. Home and inactivity
+                            logout remain public. The pathless route adds no URL segment.
+                            <code>src/main.tsx</code> mounts the inactivity warning overlay alongside the
+                            router so it can appear on any page.
                         </p>
                         <pre>
                             <code>{`export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: enforceLogin,
-  component: AuthenticatedLayout
+  beforeLoad: enforceLogin
 });`}</code>
                         </pre>
                     </li>

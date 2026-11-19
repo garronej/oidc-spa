@@ -1,17 +1,6 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { AutoLogoutWarningOverlay } from "~/components/AutoLogoutWarningOverlay";
+import { createFileRoute } from "@tanstack/react-router";
 import { enforceLogin } from "~/oidc";
 
 export const Route = createFileRoute("/_authenticated")({
-    beforeLoad: enforceLogin,
-    component: AuthenticatedLayout
+    beforeLoad: enforceLogin
 });
-
-function AuthenticatedLayout() {
-    return (
-        <>
-            <Outlet />
-            <AutoLogoutWarningOverlay />
-        </>
-    );
-}

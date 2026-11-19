@@ -9,15 +9,15 @@ npx @tanstack/cli create tanstack-router --router-only --build-tool vite --blank
 
 ## Run locally
 
-Use Node.js 22.22+ and Yarn:
+Use Node.js 22.22+ and Yarn. From the repository root:
 
 ```sh
 yarn
-yarn dev
+yarn start-tanstack-router-example
 ```
 
-Open **http://app.localhost:3000**. Vite serves the SPA and proxies `/api` to the
-Express server on port 3001. Both processes run with one development command.
+This uses the workspace build of oidc-spa. Open **http://app.localhost:3000**.
+Vite serves the SPA and proxies `/api` to the Express server on port 3001.
 
 In the tracked `.env`, choose `VITE_OIDC_PROVIDER`: `Keycloak`, `Keycloak2`
 (introspection), `Auth0`, `EntraID`, or `mock`. Mock mode starts with a signed-in
@@ -27,9 +27,6 @@ Vite embeds `VITE_*` settings into the frontend. Restart development after chang
 them; rebuild for production. `server/oidc.ts` reads its settings from `process.env`.
 Local development and the Node production server load `.env`. Introspection secrets
 and KV credentials have no `VITE_` prefix and stay on the server.
-
-To use local oidc-spa source, run `yarn start-tanstack-router-example` from the
-repository root.
 
 ## Pages and integration
 
@@ -43,12 +40,14 @@ repository root.
 `vite.config.ts` configures file-based routing and oidc-spa's Vite plugin. The plugin
 runs early initialization before application code, enables browser runtime
 protection and DPoP, and skips loading the app in the auth-response iframe when
-appropriate. `src/main.tsx` wraps the router in `OidcInitializationGate`.
+appropriate. Public pages render while OIDC initializes. The header waits for
+`isOidcReady` before showing authentication controls.
 
 `src/oidc.ts` uses `oidc-spa/react`, maps token claims to `User_client`, and
 configures the browser client. `src/routes/_authenticated/route.tsx` protects its
-children with one `beforeLoad: enforceLogin` and mounts `AutoLogoutWarningOverlay`.
-The pathless layout leaves URLs unchanged. The header stays in the root.
+children with one `beforeLoad: enforceLogin`. The pathless route leaves URLs
+unchanged. `src/main.tsx` mounts `AutoLogoutWarningOverlay` alongside the router so
+it can display warnings on every page.
 
 `autoLogout_returnToUrl` uses `router.buildLocation()` to build a typed path and
 search parameters for the inactivity page. Its resume link returns to the saved
