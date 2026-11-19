@@ -47,9 +47,9 @@ introspection secrets, expected API audiences, and storage credentials use priva
 -   `/inactivity-logout`: public inactivity message and a same-origin resume link.
 
 `app/oidc.ts` defines the application user and runtime configuration with the same
-builder as the Vue and React examples. Unasserted calls to `useOidc()` return a computed
-ref that templates unwrap. The header buttons use asserted calls after the header has
-established the user's state.
+builder as the Vue and React examples. Unasserted calls to `useOidc()` expose reactive
+fields you can destructure, such as `const { autoLogoutState } = useOidc()`. The header
+reads the full snapshot to check readiness before mounting its asserted buttons.
 
 Protected pages live under `app/pages/(authenticated)/`, which adds no URL segment.
 They declare `requiresAuth: true`. `app/middleware/auth.global.ts` runs login enforcement

@@ -195,9 +195,9 @@ test("useOidc initializes on mount and renders both states", async () => {
     const app = mount(
         defineComponent({
             setup() {
-                const oidc = utils.useOidc();
+                const { isOidcReady } = utils.useOidc();
                 assert.equal(configCalls, 0);
-                return () => (oidc.value.isOidcReady ? "Ready" : "Loading");
+                return () => (isOidcReady.value ? "Ready" : "Loading");
             }
         })
     );
@@ -238,7 +238,9 @@ test("the app renders during user creation and user refs update after refresh", 
             h(Consumer, { useOidc: utils.useOidc })
         ])
     );
+    const { user: projectedUser } = utils.useOidc();
     assert.equal(text(app.root), "Public page");
+    assert.equal(projectedUser.value, undefined);
     await flush();
     assert.equal(configCalls, 1);
     assert.equal(text(app.root), "Public page");
@@ -252,10 +254,12 @@ test("the app renders during user creation and user refs update after refresh", 
     assert(isReadonly(userRef));
     const firstUser = await oidc.getUser();
     assert.equal(userRef.value, firstUser);
+    assert.equal(projectedUser.value, firstUser);
     await oidc.refreshUser();
     await nextTick();
     assert.equal(currentUser, firstUser);
     assert.equal(text(app.root), "Public pageUser 2User 2");
+    assert.equal(projectedUser.value, userRef.value);
     assert.equal(configCalls, 1);
     assert.throws(() => utils.useOidc({ assert: "user not logged in" }), /logic error/);
     await assert.rejects(utils.getOidc({ assert: "user not logged in" }), /currently logged in/);
@@ -464,8 +468,8 @@ for (const issuerUri of ["/realms/demo/", "https://auth.test/realms/demo/"]) {
         const app = mount(
             defineComponent({
                 setup() {
-                    const oidc = utils.useOidc();
-                    return () => h("span", oidc.value.initializationError?.message ?? "Loading");
+                    const { initializationError } = utils.useOidc();
+                    return () => h("span", initializationError.value?.message ?? "Loading");
                 }
             })
         );
@@ -546,9 +550,8 @@ test("auto-logout refs update consumers; pending navigation token redirects matc
     const app = mount(
         defineComponent({
             setup() {
-                const oidc = utils.useOidc();
+                const { autoLogoutState } = utils.useOidc();
                 return () => {
-                    const { autoLogoutState } = oidc.value;
                     return autoLogoutState.value.shouldDisplayWarning
                         ? String(autoLogoutState.value.secondsLeftBeforeAutoLogout)
                         : "No warning";
@@ -556,6 +559,7 @@ test("auto-logout refs update consumers; pending navigation token redirects matc
             }
         })
     );
+    assert.equal(text(app.root), "No warning");
     await flush();
     assert.equal(text(app.root), "No warning");
     const state = {
@@ -566,6 +570,7 @@ test("auto-logout refs update consumers; pending navigation token redirects matc
     publishAutoLogout(state);
     await nextTick();
     assert.equal(text(app.root), "12");
+    assert.equal(utils.useOidc().autoLogoutState.value, state);
     assert.equal(utils.useOidc().value.autoLogoutState.value, state);
     const oidc = await utils.getOidc();
     const originalPushState = history.pushState;
@@ -705,8 +710,8 @@ test("SSR-enabled hydration starts pending even when OIDC is already initialized
             .createUtils();
         const Component = defineComponent({
             setup() {
-                const oidc = useOidc();
-                return () => (oidc.value.isOidcReady ? "Ready" : "Loading");
+                const { isOidcReady } = useOidc();
+                return () => (isOidcReady.value ? "Ready" : "Loading");
             }
         });
         return { Component, getOidc, useOidc };

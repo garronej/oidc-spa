@@ -14,9 +14,9 @@ import { assert, type Equals } from "../tools/tsafe/assert";
 
 export type { IdTokenClaims, OidcProviderMetadata, OidcUserInfo, OidcTokens, Oidc, AutoLogoutState };
 
-/** Unasserted calls expose the current snapshot as a readonly computed ref. */
+/** Unasserted calls expose a reactive snapshot and destructurable refs for its fields. */
 export type UseOidc<User> = {
-    (params?: { assert?: undefined }): ComputedRef<Oidc_vue<User>>;
+    (params?: { assert?: undefined }): Oidc_vue.Ref<User>;
     (params: { assert: "user logged in" }): Oidc_vue.LoggedIn<User>;
     (params: { assert: "user not logged in" }): Oidc_vue.NotLoggedIn;
 };
@@ -53,6 +53,16 @@ export type Oidc_vue<User> =
       });
 
 export namespace Oidc_vue {
+    export type Ref<User> = ComputedRef<Oidc_vue<User>> & {
+        readonly [Key in keyof Oidc_vue<unknown>]-?: ComputedRef<
+            Key extends "user"
+                ? User | undefined
+                : Key extends "autoLogoutState"
+                ? AutoLogoutState
+                : Oidc_vue<User>[Key]
+        >;
+    };
+
     export type NotReady = {
         isOidcReady: false;
         autoLogoutState: Readonly<ShallowRef<{ shouldDisplayWarning: false }>>;

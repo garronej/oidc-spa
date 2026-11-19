@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useOidc } from "../oidc";
+import { useOidc } from "../../oidc";
 import AuthButtonsLoggedIn from "./AuthButtonsLoggedIn.vue";
 import AuthButtonsNotLoggedIn from "./AuthButtonsNotLoggedIn.vue";
 

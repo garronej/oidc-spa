@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useOidc } from "../oidc";
+import { useOidc } from "../../oidc";
 
 const { user, logout } = useOidc({ assert: "user logged in" });
 </script>

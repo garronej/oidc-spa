@@ -1,4 +1,5 @@
 import type { ComputedRef, ShallowRef } from "vue";
+import type { GetOidc, Oidc_react } from "../../src/react/types";
 import {
     oidcSpa,
     OidcInitializationError,
@@ -12,6 +13,21 @@ import {
 import { assert, type Equals } from "../../src/tools/tsafe/assert";
 
 type User = { displayName: string };
+
+assert<Equals<keyof Oidc_vue<User>, Exclude<keyof Oidc_react<User>, "suspensePromise">>>();
+assert<Equals<OidcSpaUtils<User>["getOidc"], GetOidc<User>>>();
+assert<
+    Equals<
+        Omit<Oidc_vue.LoggedIn<User>, "user" | "autoLogoutState">,
+        Omit<Oidc_react.LoggedIn<User>, "user" | "autoLogoutState">
+    >
+>();
+assert<
+    Equals<
+        Omit<Oidc_vue.NotLoggedIn, "autoLogoutState">,
+        Omit<Oidc_react.NotLoggedIn, "autoLogoutState">
+    >
+>();
 
 // Never invoked: check the builder, public utilities and discriminated unions.
 export async function checkTypes() {
@@ -47,7 +63,15 @@ export async function checkTypes() {
     assert<Equals<typeof loggedOut, Oidc.NotLoggedIn>>;
 
     const stateRef = utils.useOidc();
-    assert<Equals<typeof stateRef, ComputedRef<Oidc_vue<User>>>>;
+    assert<Equals<typeof stateRef.value, Oidc_vue<User>>>;
+    const { autoLogoutState, initializationError, isOidcReady: ready } = stateRef;
+    assert<Equals<typeof autoLogoutState, ComputedRef<AutoLogoutState>>>;
+    assert<Equals<typeof initializationError, ComputedRef<OidcInitializationError | undefined>>>;
+    assert<Equals<typeof ready, ComputedRef<boolean>>>;
+    assert<Equals<typeof stateRef.user, ComputedRef<User | undefined>>>;
+    assert<Equals<typeof stateRef.login, ComputedRef<Oidc_vue.NotLoggedIn["login"] | undefined>>>;
+    // @ts-expect-error consumers cannot replace the warning state
+    autoLogoutState.value = { shouldDisplayWarning: false };
     const state = stateRef.value;
     if (!state.isOidcReady) {
         assert<Equals<typeof state.initializationError, OidcInitializationError | undefined>>;

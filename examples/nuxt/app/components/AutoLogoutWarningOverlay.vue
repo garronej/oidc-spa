@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useOidc } from "../oidc";
 
-const { autoLogoutState } = useOidc({ assert: "user logged in" });
+const { autoLogoutState } = useOidc();
 </script>
 
 <template>

@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { useOidc } from "./oidc";
-
-const oidc = useOidc();
+import AppHeader from "./components/app-header/AppHeader.vue";
 </script>
 
 <template>
@@ -9,5 +7,5 @@ const oidc = useOidc();
     <main>
         <NuxtPage />
     </main>
-    <AutoLogoutWarningOverlay v-if="oidc.isUserLoggedIn" />
+    <AutoLogoutWarningOverlay />
 </template>

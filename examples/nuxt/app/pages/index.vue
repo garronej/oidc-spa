@@ -40,10 +40,10 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/tree/main/examples/nu
                     <h3>Define your user and provider configuration</h3>
                     <p>
                         <code>app/oidc.ts</code> uses the same builder as the Vue and React examples.
-                        Unasserted calls to <code>useOidc()</code> return a computed ref that Vue
-                        templates unwrap. Components that expect a specific login state can use an
-                        assertion. Configuration comes from Nuxt's public runtime config. Mock mode works
-                        without an identity provider.
+                        Unasserted calls to <code>useOidc()</code> expose reactive fields you can
+                        destructure. Components that expect a specific login state can use an assertion.
+                        Configuration comes from Nuxt's public runtime config. Mock mode works without an
+                        identity provider.
                     </p>
                     <pre><code>const { user } = useOidc({ assert: "user logged in" });</code></pre>
                 </li>

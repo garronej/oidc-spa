@@ -5,7 +5,6 @@ import {
     shallowReadonly,
     shallowRef,
     triggerRef,
-    type ComputedRef,
     type ShallowRef
 } from "vue";
 import type {
@@ -352,12 +351,12 @@ export function createUtils<User>(params: {
                 (login ??= params => oidc.login({ doesCurrentHrefEnforceLogin: false, ...params }));
         })();
 
-        function useOidc(params?: { assert?: undefined }): ComputedRef<Oidc_vue<User>>;
+        function useOidc(params?: { assert?: undefined }): Oidc_vue.Ref<User>;
         function useOidc(params: { assert: "user logged in" }): Oidc_vue.LoggedIn<User>;
         function useOidc(params: { assert: "user not logged in" }): Oidc_vue.NotLoggedIn;
         function useOidc(params?: {
             assert?: "user logged in" | "user not logged in";
-        }): ComputedRef<Oidc_vue<User>> | Oidc_vue.NotLoggedIn | Oidc_vue.LoggedIn<User> {
+        }): Oidc_vue.Ref<User> | Oidc_vue.NotLoggedIn | Oidc_vue.LoggedIn<User> {
             const { assert: assert_params } = params ?? {};
             const instance = getCurrentInstance();
             const hasHydrated = shallowRef(
@@ -422,7 +421,27 @@ export function createUtils<User>(params: {
             }
 
             if (assert_params === undefined) {
-                return computed(getSnapshot);
+                const snapshot = computed(getSnapshot);
+                const field = <Key extends keyof Oidc_vue<User>>(key: Key) =>
+                    computed(() => snapshot.value[key]);
+
+                return Object.assign(snapshot, {
+                    isOidcReady: field("isOidcReady"),
+                    isUserLoggedIn: field("isUserLoggedIn"),
+                    initializationError: field("initializationError"),
+                    issuerUri: field("issuerUri"),
+                    clientId: field("clientId"),
+                    validRedirectUri: field("validRedirectUri"),
+                    login: field("login"),
+                    logout: field("logout"),
+                    renewTokens: field("renewTokens"),
+                    startAuthorization: field("startAuthorization"),
+                    authorizationResult: field("authorizationResult"),
+                    isNewBrowserSession: field("isNewBrowserSession"),
+                    autoLogoutState: computed(() => snapshot.value.autoLogoutState.value),
+                    user: computed(() => snapshot.value.user?.value),
+                    refreshUser: field("refreshUser")
+                });
             }
 
             const snapshot = getSnapshot();
