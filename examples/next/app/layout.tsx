@@ -15,8 +15,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <body>
                 <AppHeader />
                 <main>{children}</main>
+                <AutoLogoutWarningOverlay />
             </body>
-            <AutoLogoutWarningOverlay />
         </html>
     );
 }

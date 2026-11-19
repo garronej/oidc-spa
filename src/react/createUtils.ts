@@ -915,13 +915,6 @@ export function createUtils<User>(params: {
             const useIsomorphicLayoutEffect = isBrowser ? useLayoutEffect : () => {};
 
             function ComponentWithLoginEnforced(props: Props) {
-                const [returnToUrl] = useState(() => {
-                    if (!isBrowser) {
-                        return undefined;
-                    }
-                    return location.href;
-                });
-
                 const [initializationError_login, setInitializationError_login] = useReducer<
                     OidcInitializationError | undefined,
                     [OidcInitializationError]
@@ -930,7 +923,7 @@ export function createUtils<User>(params: {
                 useIsomorphicLayoutEffect(() => {
                     let isActive = true;
 
-                    assert(returnToUrl !== undefined);
+                    const returnToUrl = location.href;
 
                     (async () => {
                         const ctx = await dClientCtx.pr;
