@@ -14,8 +14,6 @@ export const routes: Routes = [
   {
     path: '',
     canActivateChild: [enforceLoginGuard],
-    loadComponent: () =>
-      import('./pages/protected/protected-layout').then((m) => m.ProtectedLayout),
     loadChildren: () => import('./pages/protected/protected.routes').then((m) => m.routes),
   },
   { path: '**', loadComponent: () => import('./pages/not-found').then((m) => m.NotFound) },

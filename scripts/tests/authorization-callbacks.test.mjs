@@ -53,9 +53,9 @@ function load(source, globals = {}) {
 const callbackSource = await bundle(
     `
     export * from "./src/core/StateDataCookie";
-    export { oidcEarlyInit } from "./src/core/earlyInit";
+    export { oidcEarlyInit, enableSSRCapability } from "./src/entrypoint";
     export { getRootRelativeOriginalLocationHref_earlyInit } from "./src/core/earlyInit_rootRelativeOriginalLocationHref";
-    export { __withOidcSpaServerEntry } from "./src/tanstack-start-react/withOidcSpaServerEntry";
+    export { withOidcSpaServerEntry } from "./src/tanstack-start-react/withOidcSpaServerEntry";
 `,
     {
         "./earlyInit_prModuleCreateOidc": `export const prModuleCreateOidc = Promise.resolve({
@@ -130,7 +130,7 @@ for (const legacy of [false, true]) {
             );
 
             let renderedRequest;
-            const server = api.__withOidcSpaServerEntry({
+            const server = api.withOidcSpaServerEntry({
                 fetch: request => {
                     renderedRequest = request;
                     return Response.json({ ok: true });
@@ -149,7 +149,7 @@ for (const legacy of [false, true]) {
 
 test("cookies serialize one destination and preserve query and fragment", () => {
     const { api, document } = browser({}, undefined);
-    api.enableStateDataCookie();
+    api.enableSSRCapability();
     api.setStateDataCookieIfEnabled({
         homeUrl: "https://app.test/app/",
         stateUrlParamValue_instance: state,
@@ -191,12 +191,12 @@ test("iframe errors are posted to the parent without loading the application", (
 });
 
 test("the server leaves ordinary requests and unmatched callbacks unchanged", async () => {
-    const { __withOidcSpaServerEntry } = load(callbackSource);
+    const { withOidcSpaServerEntry } = load(callbackSource);
     for (const query of ["", `?state=${state}&error=consent_required`]) {
         const request = new Request(`https://app.test/app/${query}`);
         const opts = {};
         const response = new Response("unchanged");
-        const server = __withOidcSpaServerEntry({
+        const server = withOidcSpaServerEntry({
             fetch: (received, receivedOpts) => {
                 assert.equal(received, request);
                 assert.equal(receivedOpts, opts);

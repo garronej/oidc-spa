@@ -1,6 +1,6 @@
 "use client";
 
-import { oidcSpa } from "oidc-spa/nextjs";
+import { oidcSpa } from "oidc-spa/react";
 import { z } from "zod";
 import { decodeJwt } from "oidc-spa/decode-jwt";
 import avatarFallbackSvg from "@/assets/userPictureFallback.svg";
@@ -16,7 +16,7 @@ export type User_client = {
     canSeeAdminNavigation: boolean;
 };
 
-export const { useOidc, getOidc, OidcInitializationGate, withLoginEnforced } = oidcSpa
+export const { useOidc, getOidc, withLoginEnforced } = oidcSpa
     .withUser<User_client>(async ({ isMock, idTokenClaims, accessToken }) => {
         if (isMock) {
             const user_mock: User_client = {
@@ -36,11 +36,13 @@ export const { useOidc, getOidc, OidcInitializationGate, withLoginEnforced } = o
             })
             .parse(idTokenClaims);
 
+        const accessTokenClaims = decodeJwt(accessToken);
+
         const { roles } = z
             .object({
                 roles: z.array(z.string()).optional()
             })
-            .parse(decodeJwt(accessToken));
+            .parse(accessTokenClaims);
 
         const user: User_client = {
             displayName: name,

@@ -51,11 +51,8 @@ import {
     notifyNewInstanceThatCantUseIframes
 } from "./instancesThatCantUseIframes";
 import { ensureNonBlankPaint } from "../tools/ensureNonBlankPaint";
-import {
-    setStateDataCookieIfEnabled,
-    clearStateDataCookie,
-    getIsStateDataCookieEnabled
-} from "./StateDataCookie";
+import { setStateDataCookieIfEnabled, clearStateDataCookie } from "./StateDataCookie";
+import { getIsStateDataCookieEnabled } from "./StateDataCookie.toggle";
 import {
     loadWebcryptoLinerShim,
     hasLoadWebcryptoLinerShimBeenCalled

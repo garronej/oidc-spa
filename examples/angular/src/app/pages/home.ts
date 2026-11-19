@@ -30,7 +30,7 @@ import { RouterLink } from '@angular/router';
         <h2 id="integration-heading">How the integration is set up</h2>
         <ol>
           <li>
-            <h3>Initialize authentication before rendering</h3>
+            <h3>Render while authentication initializes</h3>
             <p>
               <a [href]="sourceUrl + '/src/main.earlyInit.ts'"
                 ><code>src/main.earlyInit.ts</code></a
@@ -38,8 +38,9 @@ import { RouterLink } from '@angular/router';
               calls <code>oidcEarlyInit()</code> with DPoP enabled, then dynamically imports
               <code>src/main.ts</code> to bootstrap Angular. <code>provideOidc()</code> in
               <a [href]="sourceUrl + '/src/app/app.config.ts'"><code>app.config.ts</code></a>
-              waits for authentication and the user profile before the app renders. This is a
-              browser-only application, without server-side rendering.
+              starts authentication while Angular renders public pages. The header checks
+              <code>isOidcReady</code> before showing authentication controls. This example renders
+              in the browser.
             </p>
           </li>
           <li>
@@ -108,8 +109,9 @@ import { RouterLink } from '@angular/router';
             <pre><code [textContent]="requestExample"></code></pre>
             <p>
               <code>createOidcInterceptor()</code> reads this context token and attaches a current
-              access token. Public requests, including the runtime configuration request, don't
-              carry one.
+              access token when one is available. The API handles authorization and returns its own
+              HTTP response. Public requests, including the runtime configuration request, carry no
+              access token.
             </p>
           </li>
           <li>
@@ -136,8 +138,8 @@ import { RouterLink } from '@angular/router';
           <li>
             <h3>Resume after inactivity logout</h3>
             <p>
-              The protected layout mounts <code>AutoLogoutWarningOverlay</code> to display the
-              countdown before automatic logout. In <code>app.config.ts</code>,
+              The root app component mounts <code>AutoLogoutWarningOverlay</code> for signed-in
+              users on every page. In <code>app.config.ts</code>,
               <code>autoLogout_returnToUrl</code> sends the user to the public
               <a [href]="sourceUrl + '/src/app/pages/inactivity-logout.ts'"
                 >inactivity logout page</a

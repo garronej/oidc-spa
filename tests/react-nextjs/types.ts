@@ -7,14 +7,10 @@ import {
     type Oidc,
     type Oidc_react,
     type RuntimeConfigs
-} from "../../src/nextjs";
-import { oidcSpa as oidcSpa_react, type OidcSpaUtils as OidcSpaUtils_react } from "../../src/react";
+} from "../../src/react";
 import { assert, type Equals } from "../../src/tools/tsafe/assert";
 
 type User = { displayName: string };
-
-assert<Equals<Parameters<typeof oidcSpa.withUser>, Parameters<typeof oidcSpa_react.withUser>>>;
-assert<Equals<OidcSpaUtils<User>, Omit<OidcSpaUtils_react<User>, "enforceLogin">>>;
 
 // Never invoked: exercise inference, overloads and builder ordering as a consumer.
 export async function checkTypes() {
@@ -33,11 +29,18 @@ export async function checkTypes() {
     const configured = builder.withRuntimeConfigs({ mode: "mock", isUserInitiallyLoggedIn: false });
     const utils = configured.createUtils();
     assert<Equals<typeof utils, OidcSpaUtils<User>>>;
-    assert<Equals<ReturnType<typeof utils.useOidc>, Oidc_react.NotLoggedIn>>;
+    const state = utils.useOidc();
+    assert<Equals<typeof state, Oidc_react<User>>>;
+    if (!state.isOidcReady) {
+        assert<Equals<typeof state.isUserLoggedIn, undefined>>;
+        assert<Equals<typeof state.initializationError, OidcInitializationError | undefined>>;
+    }
     const loggedIn = utils.useOidc({ assert: "user logged in" });
     assert<Equals<typeof loggedIn.user, User>>;
     const loggedOut = utils.useOidc({ assert: "user not logged in" });
     assert<Equals<typeof loggedOut, Oidc_react.NotLoggedIn>>;
+    loggedOut.login();
+    // @ts-expect-error route-enforcement options belong to the imperative API
     loggedOut.login({ doesCurrentHrefEnforceLogin: true });
     const oidc = await utils.getOidc();
     assert<Equals<typeof oidc, Oidc<User>>>;
@@ -46,8 +49,8 @@ export async function checkTypes() {
         assert<Equals<typeof user, User>>;
     }
 
-    // @ts-expect-error Next.js has no client route loaders
-    utils.enforceLogin({ location: { href: "/private" }, cause: "enter" });
+    await utils.enforceLogin({ location: { href: "/private" }, cause: "enter" });
+    await utils.enforceLogin({ request: { url: "https://app.test/private" } });
     const Guarded = utils.withLoginEnforced({
         component: (props: { greeting: string }) => props.greeting,
         errorComponent: ({ oidcInitializationError }) => {
@@ -78,8 +81,8 @@ export async function checkTypes() {
 
     // @ts-expect-error auto-login mode has been removed
     configured.withAutoLogin();
-    // @ts-expect-error initialization errors are handled by page protection
-    utils.OidcInitializationErrorGate;
+    // @ts-expect-error initialization is exposed through useOidc
+    utils.OidcInitializationGate;
     // @ts-expect-error page protection takes an options object
     utils.withLoginEnforced((props: { greeting: string }) => props.greeting);
 }

@@ -1,4 +1,4 @@
-import { defineComponent, h, type ShallowRef, type VNodeChild } from "vue";
+import type { ComputedRef, ShallowRef } from "vue";
 import {
     oidcSpa,
     OidcInitializationError,
@@ -13,7 +13,7 @@ import { assert, type Equals } from "../../src/tools/tsafe/assert";
 
 type User = { displayName: string };
 
-// Never invoked: check the builder, public component props and discriminated unions.
+// Never invoked: check the builder, public utilities and discriminated unions.
 export async function checkTypes() {
     // @ts-expect-error a user factory is required first
     oidcSpa.withRuntimeConfigs({ mode: "mock" });
@@ -32,6 +32,7 @@ export async function checkTypes() {
     builder.createUtils();
     const utils = builder.withRuntimeConfigs({ mode: "mock" }).createUtils();
     assert<Equals<typeof utils, OidcSpaUtils<User>>>;
+    assert<Equals<keyof typeof utils, "useOidc" | "getOidc" | "enforceLogin">>;
     const inferred = oidcSpa
         .withUser(async () => ({ displayName: "Alice" }))
         .withRuntimeConfigs(async (): Promise<RuntimeConfigs> => ({ mode: "mock" }))
@@ -45,16 +46,20 @@ export async function checkTypes() {
     const loggedOut = await utils.getOidc({ assert: "user not logged in" });
     assert<Equals<typeof loggedOut, Oidc.NotLoggedIn>>;
 
-    const state = utils.useOidc();
-    assert<Equals<typeof state, Oidc_vue<User>>>;
-    if (state.isUserLoggedIn) {
+    const stateRef = utils.useOidc();
+    assert<Equals<typeof stateRef, ComputedRef<Oidc_vue<User>>>>;
+    const state = stateRef.value;
+    if (!state.isOidcReady) {
+        assert<Equals<typeof state.initializationError, OidcInitializationError | undefined>>;
+        assert<Equals<typeof state.isUserLoggedIn, undefined>>;
+    } else if (state.isUserLoggedIn) {
         assert<Equals<typeof state.user.value, User>>;
         assert<Equals<typeof state.initializationError, undefined>>;
     } else {
         assert<Equals<typeof state.initializationError, OidcInitializationError | undefined>>;
         assert<Equals<typeof state.user, undefined>>;
     }
-    const { isUserLoggedIn, user } = utils.useOidc();
+    const { isUserLoggedIn, user } = stateRef.value;
     if (isUserLoggedIn) {
         assert<Equals<typeof user.value, User>>;
         user.value.displayName.toUpperCase();
@@ -72,23 +77,11 @@ export async function checkTypes() {
     authenticated.autoLogoutState.value = { shouldDisplayWarning: false };
     const anonymous = utils.useOidc({ assert: "user not logged in" });
     assert<Equals<typeof anonymous.isUserLoggedIn, false>>;
-    anonymous.login({});
+    anonymous.login();
+    // @ts-expect-error the composable login does not expose the guard option
+    anonymous.login({ doesCurrentHrefEnforceLogin: true });
 
     await utils.enforceLogin({ fullPath: "/account" });
     // @ts-expect-error pass the route object, not a URL string
     utils.enforceLogin("https://app.test/account");
-
-    const Account = defineComponent({
-        props: { label: { type: String, required: true } },
-        setup: props => () => h("p", props.label)
-    });
-
-    const Gate = utils.OidcInitializationGate;
-    type GateProps = InstanceType<typeof Gate>["$props"];
-    const gateProps: GateProps = { fallback: "Loading" };
-    void gateProps;
-    h(Gate, null, {
-        default: (): VNodeChild => h(Account, { label: "Account" }),
-        fallback: (): VNodeChild => "Loading"
-    });
 }

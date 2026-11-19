@@ -45,7 +45,7 @@ export default defineConfig({ base:${JSON.stringify(
         }),
         "ui/routes.ts": `import {index,route} from "@react-router/dev/routes"; export default [index("routes/home.tsx"),route("todo","routes/todo.tsx")];`,
         "ui/oidc.ts": `import {oidcSpa} from "oidc-spa/react";
-export const {OidcInitializationGate,getOidc}=oidcSpa.withUser(()=>({name:"fixture"})).withRuntimeConfigs({mode:"mock",isUserInitiallyLoggedIn:true}).createUtils();`,
+export const {useOidc,getOidc}=oidcSpa.withUser(()=>({name:"fixture"})).withRuntimeConfigs({mode:"mock",isUserInitiallyLoggedIn:true}).createUtils();`,
         "ui/dependency.ts": `if(typeof window!=="undefined"){
 const protectedRuntime=Object.getOwnPropertyDescriptor(window,"fetch")?.configurable===false;
 (window.__canaries??=[]).push("dependency:"+(protectedRuntime?"protected":"EARLY"));
@@ -63,7 +63,7 @@ headers.append("Set-Cookie","fixture-a=1; Path=/");headers.append("Set-Cookie","
 return new Response(body,{status,headers});}`,
         "ui/root.tsx": `import "./dependency";
 import {Links,Meta,Outlet,Scripts,useLoaderData} from "react-router";
-import {OidcInitializationGate} from "./oidc";
+import {useOidc} from "./oidc";
 if(typeof window!=="undefined") window.__canaries.push("root:"+(Object.getOwnPropertyDescriptor(window,"fetch")?.configurable===false?"protected":"EARLY"));
 ${
     apiOnly
@@ -75,7 +75,7 @@ export async function loader({request}){if(!request.headers.get("Authorization")
 export function Layout({children}){return <html><head><Meta/><Links/>
 <script nonce="fixture-nonce" suppressHydrationWarning dangerouslySetInnerHTML={{__html:'(window.__canaries??=[]).push("inline:"+(Object.getOwnPropertyDescriptor(window,"fetch")?.configurable===false?"protected":"EARLY"));if(parent!==window)parent.postMessage("unexpected-app-evaluation",location.origin);'}}/>
 </head><body>{children}<Scripts nonce="fixture-nonce"/></body></html>;}
-export default function Root(){const data=useLoaderData();return <OidcInitializationGate><h1>Bootstrap fixture</h1><p id="root-data">{data?.rootValue}</p><output id="initialization-order">{window.__canaries.join(", ")}</output><Outlet/></OidcInitializationGate>;}
+export default function Root(){const data=useLoaderData();const {isOidcReady}=useOidc();return <><h1>Bootstrap fixture</h1><p id="root-data">{data?.rootValue}</p><output id="initialization-order" data-oidc-ready={isOidcReady}>{typeof window==="undefined"?"":window.__canaries.join(", ")}</output><Outlet/></>;}
 export function HydrateFallback(){return null;}
 export function ErrorBoundary({error}){return <p role="alert">{String(error.status||error.message||error)}</p>;}`,
         "ui/routes/home.tsx": `export default function Home(){return <p>Home</p>;}`,

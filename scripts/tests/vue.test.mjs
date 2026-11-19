@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import { build } from "esbuild";
-import { createRenderer, defineComponent, h, isReadonly, isRef, nextTick } from "vue";
+import { createHydrationRenderer, createRenderer, defineComponent, h, isReadonly, isRef, nextTick } from "vue";
 import { parse, compileScript } from "vue/compiler-sfc";
 import { renderToString } from "vue/server-renderer";
 
@@ -13,6 +13,7 @@ const { outputFiles, metafile } = await build({
     stdin: {
         contents: `
             export * from "./src/vue";
+            export { enableSSRCapability } from "./src/entrypoint";
             export { setBASE_URL_earlyInit } from "./src/core/earlyInit_BASE_URL";
             export { setGetRootRelativeOriginalLocationHref_earlyInit } from "./src/core/earlyInit_rootRelativeOriginalLocationHref";
         `,
@@ -42,7 +43,7 @@ const { outputFiles, metafile } = await build({
     ]
 });
 
-// Compile the same destructured consumer that vue-tsc checks, including its template.
+// Compile the same reactive consumer that vue-tsc checks, including its template.
 const consumerUrl = new URL("../../tests/vue/Consumer.vue", import.meta.url);
 const { descriptor } = parse(readFileSync(consumerUrl, "utf8"), { filename: consumerUrl.pathname });
 const consumerScript = compileScript(descriptor, { id: "oidc-consumer", inlineTemplate: true });
@@ -101,7 +102,7 @@ function load({ browser = true, createOidc } = {}) {
 }
 
 // Exercise real Vue component lifecycles and reactivity without a browser DOM.
-const renderer = createRenderer({
+const rendererOptions = {
     createElement: type => ({ type, children: [], props: {} }),
     createText: text => ({ text }),
     createComment: () => ({ text: "" }),
@@ -127,7 +128,8 @@ const renderer = createRenderer({
         if (siblings) siblings.splice(siblings.indexOf(node), 1);
         node.parent = undefined;
     }
-});
+};
+const renderer = createRenderer(rendererOptions);
 
 function mount(component) {
     const root = { children: [] };
@@ -170,22 +172,49 @@ test("Vue export exposes router-based utilities without a React runtime dependen
         .withRuntimeConfigs({ mode: "mock" })
         .createUtils();
     assert.deepEqual(Object.keys(utils).sort(), [
-        "OidcInitializationGate",
         "enforceLogin",
         "getOidc",
         "useOidc"
     ]);
-    assert.throws(() => utils.useOidc(), /OidcInitializationGate/);
+    const state = utils.useOidc();
+    assert.equal(state.value.isOidcReady, false);
+    assert.equal("suspensePromise" in state.value, false);
+    assert.equal("withLoginEnforced" in utils, false);
 });
 
-test("gate waits for async user creation; refs preserve user identity and update on refresh", async () => {
+test("useOidc initializes on mount and renders both states", async () => {
+    const { oidcSpa } = load();
+    let configCalls = 0;
+    const utils = oidcSpa
+        .withUser(() => assert.fail("must not create a logged-out user"))
+        .withRuntimeConfigs(() => {
+            configCalls++;
+            return { mode: "mock", isUserInitiallyLoggedIn: false };
+        })
+        .createUtils();
+    const app = mount(
+        defineComponent({
+            setup() {
+                const oidc = utils.useOidc();
+                assert.equal(configCalls, 0);
+                return () => (oidc.value.isOidcReady ? "Ready" : "Loading");
+            }
+        })
+    );
+    assert.equal(text(app.root), "Loading");
+    await flush();
+    assert.equal(text(app.root), "Ready");
+    assert.equal(configCalls, 1);
+    assert.deepEqual(app.errors, []);
+    app.unmount();
+});
+
+test("the app renders during user creation and user refs update after refresh", async () => {
     const { oidcSpa } = load();
     let finishUser;
     const pendingUser = new Promise(resolve => (finishUser = resolve));
     let configCalls = 0;
     let userCalls = 0;
-    let mounted = 0;
-    let userRef;
     let currentUser;
     const utils = oidcSpa
         .withUser(async ({ user_current }) => {
@@ -202,30 +231,23 @@ test("gate waits for async user creation; refs preserve user identity and update
             return { mode: "mock" };
         })
         .createUtils();
-    const Child = defineComponent({
-        setup() {
-            mounted++;
-            const { user } = utils.useOidc({ assert: "user logged in" });
-            userRef = user;
-            return () => h(Consumer, { useOidc: utils.useOidc });
-        }
-    });
     const app = mount(() =>
-        h(utils.OidcInitializationGate, null, {
-            default: () => [h(Child), h(Child)],
-            fallback: () => "Loading"
-        })
+        h("main", [
+            h("p", "Public page"),
+            h(Consumer, { useOidc: utils.useOidc }),
+            h(Consumer, { useOidc: utils.useOidc })
+        ])
     );
+    assert.equal(text(app.root), "Public page");
     await flush();
     assert.equal(configCalls, 1);
-    assert.equal(mounted, 0);
-    assert.equal(text(app.root), "Loading");
+    assert.equal(text(app.root), "Public page");
     const [oidc, other] = await Promise.all([utils.getOidc(), utils.getOidc()]);
     assert.equal(oidc, other);
     finishUser();
     await flush();
-    assert.equal(mounted, 2);
-    assert.equal(text(app.root), "User 1User 1");
+    assert.equal(text(app.root), "Public pageUser 1User 1");
+    const { user: userRef } = utils.useOidc({ assert: "user logged in" });
     assert(isRef(userRef));
     assert(isReadonly(userRef));
     const firstUser = await oidc.getUser();
@@ -233,7 +255,7 @@ test("gate waits for async user creation; refs preserve user identity and update
     await oidc.refreshUser();
     await nextTick();
     assert.equal(currentUser, firstUser);
-    assert.equal(text(app.root), "User 2User 2");
+    assert.equal(text(app.root), "Public pageUser 2User 2");
     assert.equal(configCalls, 1);
     assert.throws(() => utils.useOidc({ assert: "user not logged in" }), /logic error/);
     await assert.rejects(utils.getOidc({ assert: "user not logged in" }), /currently logged in/);
@@ -251,20 +273,24 @@ test("configuration failures render public content and throw from enforceLogin",
         })
         .createUtils();
     const app = mount(() =>
-        h(utils.OidcInitializationGate, null, {
-            default: () => "Public page",
-            fallback: () => "Loading"
-        })
+        h("main", [h("p", "Public page"), h(Consumer, { useOidc: utils.useOidc })])
     );
+    assert.equal(text(app.root), "Public page");
     await flush();
     assert.equal(text(app.root), "Public page");
-    const oidc = utils.useOidc({ assert: "user not logged in" });
-    assert(oidc.initializationError instanceof OidcInitializationError);
-    assert.equal(oidc.initializationError.cause.cause, cause);
-    assert.equal((await utils.getOidc()).initializationError, oidc.initializationError);
+    const state = utils.useOidc().value;
+    assert.equal(state.isOidcReady, false);
+    assert(state.initializationError instanceof OidcInitializationError);
+    assert.equal(state.initializationError.cause.cause, cause);
+    const oidc = await utils.getOidc();
+    assert.equal(oidc.initializationError, state.initializationError);
     assert.equal(oidc.issuerUri, "https://not-resolved-yet");
     assert.equal(oidc.clientId, "not-resolved-yet");
     assert.equal(oidc.validRedirectUri, "https://app.test/app/");
+    await assert.rejects(oidc.login({ doesCurrentHrefEnforceLogin: false }), error => {
+        assert.equal(error, state.initializationError);
+        return true;
+    });
     assert.throws(() => utils.useOidc({ assert: "user logged in" }), /logic error/);
     await assert.rejects(utils.enforceLogin({ fullPath: "https://app.test/app/account" }), error => {
         assert.equal(error, oidc.initializationError);
@@ -273,20 +299,16 @@ test("configuration failures render public content and throw from enforceLogin",
     app.unmount();
 });
 
-test("destructured template consumers safely skip user access when logged out", async () => {
+test("reactive template consumers safely skip user access when logged out", async () => {
     const { oidcSpa } = load();
     const utils = oidcSpa
         .withUser(() => assert.fail("a logged-out client has no user"))
         .withRuntimeConfigs({ mode: "mock", isUserInitiallyLoggedIn: false })
         .createUtils();
-    const app = mount(() =>
-        h(utils.OidcInitializationGate, null, {
-            default: () => h(Consumer, { useOidc: utils.useOidc })
-        })
-    );
+    const app = mount(() => h(Consumer, { useOidc: utils.useOidc }));
     await flush();
     assert.equal(text(app.root), "");
-    assert.equal(utils.useOidc().isUserLoggedIn, false);
+    assert.equal(utils.useOidc().value.isUserLoggedIn, false);
     assert.equal(app.errors.length, 0);
     app.unmount();
 });
@@ -316,7 +338,8 @@ test("user-change notifications update rendered consumers even when user identit
             return () => String(user.value.revision);
         }
     });
-    const app = mount(() => h(utils.OidcInitializationGate, null, { default: () => h(Child) }));
+    await utils.enforceLogin({ fullPath: "/" });
+    const app = mount(Child);
     await flush();
     const oidc = await utils.getOidc();
     assert.equal(text(app.root), "1");
@@ -355,12 +378,15 @@ test("a failed user factory cannot pass a protected route guard", async () => {
         })
         .withRuntimeConfigs({ mode: "mock" })
         .createUtils();
-    const app = mount(() => h(utils.OidcInitializationGate, null, { default: () => "Public page" }));
+    const app = mount(() =>
+        h("main", [h("p", "Public page"), h(Consumer, { useOidc: utils.useOidc })])
+    );
     await flush();
-    const oidc = utils.useOidc({ assert: "user not logged in" });
-    assert(oidc.initializationError instanceof OidcInitializationError);
+    const state = utils.useOidc().value;
+    assert.equal(state.isOidcReady, false);
+    assert(state.initializationError instanceof OidcInitializationError);
     await assert.rejects(utils.enforceLogin({ fullPath: "https://app.test/app/account" }), error => {
-        assert.equal(error, oidc.initializationError);
+        assert.equal(error, state.initializationError);
         return true;
     });
     assert.equal(text(app.root), "Public page");
@@ -368,7 +394,7 @@ test("a failed user factory cannot pass a protected route guard", async () => {
 });
 
 for (const fullPath of ["/", "/account?tab=profile#details"]) {
-    test(`route protection waits for user creation without a mounted gate: ${fullPath}`, async () => {
+    test(`route protection waits for user creation without a mounted component: ${fullPath}`, async () => {
         const { oidcSpa } = load();
         let finishUser;
         const pendingUser = new Promise(resolve => (finishUser = resolve));
@@ -388,14 +414,14 @@ for (const fullPath of ["/", "/account?tab=profile#details"]) {
         await flush();
         assert.equal(token, "mocked-access-token");
         assert.equal(activated, false);
-        assert.throws(() => utils.useOidc(), /initialization is not complete/);
+        assert.equal(utils.useOidc().value.isOidcReady, false);
         finishUser();
         await guard;
         assert.equal(activated, true);
         assert.equal(utils.useOidc({ assert: "user logged in" }).user.value, user);
     });
 
-    test(`route protection throws user-creation errors without a mounted gate: ${fullPath}`, async () => {
+    test(`route protection throws user-creation errors without a mounted component: ${fullPath}`, async () => {
         const { oidcSpa, OidcInitializationError } = load();
         const cause = new Error("profile unavailable");
         const utils = oidcSpa
@@ -409,7 +435,7 @@ for (const fullPath of ["/", "/account?tab=profile#details"]) {
             failure = error;
             return error instanceof OidcInitializationError && error.message.includes(cause.message);
         });
-        assert.equal(utils.useOidc({ assert: "user not logged in" }).initializationError, failure);
+        assert.equal(utils.useOidc().value.initializationError, failure);
         const oidc = await utils.getOidc({ assert: "user logged in" });
         assert.equal(await oidc.getAccessToken(), "mocked-access-token");
     });
@@ -435,26 +461,25 @@ for (const issuerUri of ["/realms/demo/", "https://auth.test/realms/demo/"]) {
                 clientId: "configured-client"
             })
             .createUtils();
-        const app = mount(() =>
-            h(utils.OidcInitializationGate, null, {
-                default: () => {
-                    const { issuerUri, clientId, initializationError } = utils.useOidc({
-                        assert: "user not logged in"
-                    });
-                    assert.equal(initializationError, failure);
-                    return h("span", `${issuerUri} ${clientId}`);
+        const app = mount(
+            defineComponent({
+                setup() {
+                    const oidc = utils.useOidc();
+                    return () => h("span", oidc.value.initializationError?.message ?? "Loading");
                 }
             })
         );
         await flush();
+        assert.equal(text(app.root), failure.message);
+        const state = utils.useOidc().value;
+        assert.equal(state.isOidcReady, false);
+        assert.equal(state.initializationError, failure);
+        const oidc = await utils.getOidc();
         assert.equal(
-            text(app.root),
-            `${
-                issuerUri.startsWith("/")
-                    ? "https://app.test/realms/demo"
-                    : "https://auth.test/realms/demo"
-            } configured-client`
+            oidc.issuerUri,
+            issuerUri.startsWith("/") ? "https://app.test/realms/demo" : "https://auth.test/realms/demo"
         );
+        assert.equal(oidc.clientId, "configured-client");
         assert.equal(app.errors.length, 0);
         await assert.rejects(
             utils.enforceLogin({ fullPath: "https://app.test/app/account" }),
@@ -486,7 +511,7 @@ test("logged-out guards preserve the base path, query and fragment and stay pend
     void utils.enforceLogin({ fullPath: "/" });
     await flush();
     assert.equal(calls[1].doesCurrentHrefEnforceLogin, true);
-    void utils.useOidc().login({});
+    void utils.useOidc({ assert: "user not logged in" }).login();
     assert.equal(calls[2].doesCurrentHrefEnforceLogin, false);
 });
 
@@ -518,20 +543,17 @@ test("auto-logout refs update consumers; pending navigation token redirects matc
         .withUser(() => ({}))
         .withRuntimeConfigs(realConfigs)
         .createUtils();
-    const app = mount(() =>
-        h(utils.OidcInitializationGate, null, {
-            default: () =>
-                h(
-                    defineComponent({
-                        setup() {
-                            const { autoLogoutState } = utils.useOidc();
-                            return () =>
-                                autoLogoutState.value.shouldDisplayWarning
-                                    ? String(autoLogoutState.value.secondsLeftBeforeAutoLogout)
-                                    : "No warning";
-                        }
-                    })
-                )
+    const app = mount(
+        defineComponent({
+            setup() {
+                const oidc = utils.useOidc();
+                return () => {
+                    const { autoLogoutState } = oidc.value;
+                    return autoLogoutState.value.shouldDisplayWarning
+                        ? String(autoLogoutState.value.secondsLeftBeforeAutoLogout)
+                        : "No warning";
+                };
+            }
         })
     );
     await flush();
@@ -544,7 +566,7 @@ test("auto-logout refs update consumers; pending navigation token redirects matc
     publishAutoLogout(state);
     await nextTick();
     assert.equal(text(app.root), "12");
-    assert.equal(utils.useOidc().autoLogoutState.value, state);
+    assert.equal(utils.useOidc().value.autoLogoutState.value, state);
     const oidc = await utils.getOidc();
     const originalPushState = history.pushState;
     await utils.enforceLogin({ fullPath: "https://app.test/app/account?tab=profile" });
@@ -597,7 +619,7 @@ test("token requests preserve the pending destination while the guard waits for 
         .createUtils();
     const guard = utils.enforceLogin({ fullPath: "/account?tab=profile#details" });
     await flush();
-    assert.throws(() => utils.useOidc(), /initialization is not complete/);
+    assert.equal(utils.useOidc().value.isOidcReady, false);
     assert.equal(tokenCalls[0].returnToUrl, "https://app.test/app/account?tab=profile#details");
     finishUser();
     await guard;
@@ -605,8 +627,9 @@ test("token requests preserve the pending destination while the guard waits for 
 });
 
 for (const stage of ["client", "user"]) {
-    test(`unexpected ${stage} errors propagate to Vue's component error handler and route guards`, async () => {
+    test(`unexpected ${stage} errors propagate to Vue's component error handler and route guards`, async t => {
         const failure = new Error("unexpected failure");
+        const log = t.mock.method(console, "error", () => {});
         const { oidcSpa } = load({
             createOidc: () => {
                 if (stage === "client") throw failure;
@@ -625,14 +648,23 @@ for (const stage of ["client", "user"]) {
             .withUser(() => ({}))
             .withRuntimeConfigs(realConfigs)
             .createUtils();
-        const app = mount(() =>
-            h(utils.OidcInitializationGate, null, {
-                default: () => assert.fail("must not mount"),
-                fallback: () => "Loading"
+        const app = mount(
+            defineComponent({
+                setup() {
+                    const oidc = utils.useOidc();
+                    return () => (oidc.value.isOidcReady ? "Ready" : "Loading");
+                }
             })
+        );
+        let settled = false;
+        void utils.getOidc().then(
+            () => (settled = true),
+            () => (settled = true)
         );
         await flush();
         assert.equal(app.errors[0], failure);
+        assert.equal(settled, stage === "user");
+        if (stage === "client") assert.equal(log.mock.calls[0]?.arguments[0], failure);
         await assert.rejects(utils.enforceLogin({ fullPath: "/account" }), error => error === failure);
         app.unmount();
     });
@@ -644,20 +676,66 @@ test("server imports and reads never initialize browser authentication", async (
         .withUser(() => ({}))
         .withRuntimeConfigs(() => assert.fail("server initialization"))
         .createUtils();
-    assert.throws(() => utils.useOidc(), /SSR/);
+    assert.equal(utils.useOidc().value.isOidcReady, false);
+    assert.throws(() => utils.useOidc({ assert: "user not logged in" }), /on the server/);
     await assert.rejects(utils.getOidc(), /can't be used on the server/);
     await assert.rejects(
         utils.enforceLogin({ fullPath: "https://app.test/app/account" }),
         /cannot be used on the server/
     );
     const markup = await renderToString(
-        h(
-            utils.OidcInitializationGate,
-            { fallback: "Loading" },
-            {
-                default: () => assert.fail("must not render authenticated UI on the server")
-            }
-        )
+        h("main", [
+            h("p", "Public page"),
+            h(defineComponent({
+                setup() {
+                    const oidc = utils.useOidc();
+                    return () => h("span", oidc.value.isOidcReady ? "Ready" : "Loading");
+                }
+            }))
+        ])
     );
-    assert.match(markup, /Loading/);
+    assert.equal(markup, "<main><p>Public page</p><span>Loading</span></main>");
+});
+
+test("SSR-enabled hydration starts pending even when OIDC is already initialized", async () => {
+    function createComponent(api, getRuntimeConfigs) {
+        const { useOidc, getOidc } = api.oidcSpa
+            .withUser(() => assert.fail("must not create a logged-out user"))
+            .withRuntimeConfigs(getRuntimeConfigs)
+            .createUtils();
+        const Component = defineComponent({
+            setup() {
+                const oidc = useOidc();
+                return () => (oidc.value.isOidcReady ? "Ready" : "Loading");
+            }
+        });
+        return { Component, getOidc, useOidc };
+    }
+
+    const server = createComponent(load({ browser: false }), () => assert.fail("server initialization"));
+    const markup = await renderToString(h(server.Component));
+    assert.equal(markup, "Loading");
+
+    const api = load();
+    api.enableSSRCapability();
+    const client = createComponent(api, () => ({ mode: "mock", isUserInitiallyLoggedIn: false }));
+    await client.getOidc();
+    assert.equal(client.useOidc().value.isOidcReady, true);
+
+    const root = {
+        children: [],
+        hasChildNodes() { return this.children.length !== 0; },
+        get firstChild() { return this.children[0]; }
+    };
+    const serverNode = { nodeType: 3, data: markup, text: markup, parent: root };
+    root.children.push(serverNode);
+    const warnings = [];
+    const app = createHydrationRenderer(rendererOptions).createApp(client.Component);
+    app.config.warnHandler = warning => warnings.push(warning);
+    app.mount(root, true);
+    await nextTick();
+    assert.deepEqual(warnings, []);
+    assert.equal(root.children[0], serverNode);
+    assert.equal(text(root), "Ready");
+    app.unmount();
 });

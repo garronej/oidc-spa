@@ -217,11 +217,11 @@
             "import": "./dist/esm/tanstack-start-react/index.mjs",
             "default": "./dist/esm/tanstack-start-react/index.mjs"
         },
-        "./nextjs": {
-            "types": "./dist/esm/nextjs/index.d.ts",
-            "module": "./dist/esm/nextjs/index.mjs",
-            "import": "./dist/esm/nextjs/index.mjs",
-            "default": "./dist/esm/nextjs/index.mjs"
+        "./tanstack-start/server-entry": {
+            "types": "./dist/esm/tanstack-start-react/withOidcSpaServerEntry.d.ts",
+            "module": "./dist/esm/tanstack-start-react/withOidcSpaServerEntry.mjs",
+            "import": "./dist/esm/tanstack-start-react/withOidcSpaServerEntry.mjs",
+            "default": "./dist/esm/tanstack-start-react/withOidcSpaServerEntry.mjs"
         },
         "./angular": {
             "types": "./dist/esm/angular/index.d.ts",

@@ -5,16 +5,16 @@ const { useOidc } = defineProps<{
     useOidc: UseOidc<{ name: string }>;
 }>();
 
-const { isUserLoggedIn, user } = useOidc();
+const oidc = useOidc();
 
 // @ts-expect-error user access requires checking isUserLoggedIn
-user.value.name;
+oidc.value.user.value.name;
 </script>
 
 <template>
-    <template v-if="isUserLoggedIn">
-        {{ user.name }}
+    <template v-if="oidc.isUserLoggedIn">
+        {{ oidc.user.value.name }}
         <!-- @vue-expect-error the user model has no missingProperty field -->
-        {{ user.missingProperty }}
+        {{ oidc.user.value.missingProperty }}
     </template>
 </template>

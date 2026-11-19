@@ -81,9 +81,9 @@ export function createHandleTanStackStartServerEntrypoint(params: { resolvedConf
             `import serverEntry_original from "./${path.basename(
                 entryResolution.absolutePath
             )}?${ORIGINAL_QUERY_PARAM}=true";`,
-            `import { __withOidcSpaServerEntry } from "oidc-spa/tanstack-start-react";`,
+            `import { withOidcSpaServerEntry } from "oidc-spa/tanstack-start/server-entry";`,
             ``,
-            `const serverEntry = __withOidcSpaServerEntry(serverEntry_original);`,
+            `const serverEntry = withOidcSpaServerEntry(serverEntry_original);`,
             ``,
             `export default serverEntry;`
         ].join("\n");

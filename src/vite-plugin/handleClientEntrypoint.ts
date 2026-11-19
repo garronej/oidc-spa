@@ -43,6 +43,19 @@ export function createHandleClientEntrypoint(params: {
         projectType
     });
 
+    const doWeProvideSsrSupportForProjectType = (() => {
+        switch (projectType) {
+            case "nuxt":
+                return false;
+            case "react-router-framework":
+                return false;
+            case "tanstack-start":
+                return true;
+            case "other":
+                return false;
+        }
+    })();
+
     function getClientEntrypointSource(params: {
         applicationEntrypointImportSpecifier: string;
     }): string {
@@ -50,7 +63,8 @@ export function createHandleClientEntrypoint(params: {
         const { browserRuntimeFreeze, tokenSubstitution, DPoP } = oidcSpaVitePluginParams ?? {};
 
         return [
-            `import { oidcEarlyInit } from "oidc-spa/entrypoint";`,
+            // prettier-ignore
+            `import { oidcEarlyInit${!doWeProvideSsrSupportForProjectType?"":", enableSSRCapability"} } from "oidc-spa/entrypoint";`,
             // prettier-ignore
             !browserRuntimeFreeze ? "" : `import { browserRuntimeFreeze } from "oidc-spa/browser-runtime-freeze";`,
             // prettier-ignore
@@ -71,6 +85,7 @@ export function createHandleClientEntrypoint(params: {
             `});`,
             ``,
             `if (shouldLoadApp) {`,
+            !doWeProvideSsrSupportForProjectType ? "" : `enableSSRCapability();`,
             `import(${JSON.stringify(applicationEntrypointImportSpecifier)});`,
             `}`
         ].join("\n");

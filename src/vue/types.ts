@@ -1,4 +1,4 @@
-import type { DefineComponent, ShallowRef, SlotsType, VNodeChild } from "vue";
+import type { ComputedRef, ShallowRef } from "vue";
 import type {
     OidcInitializationError,
     ParamsOfCreateOidc,
@@ -14,14 +14,30 @@ import { assert, type Equals } from "../tools/tsafe/assert";
 
 export type { IdTokenClaims, OidcProviderMetadata, OidcUserInfo, OidcTokens, Oidc, AutoLogoutState };
 
-/** Destructure the result directly; changing values already carry Vue reactivity. */
+/** Unasserted calls expose the current snapshot as a readonly computed ref. */
 export type UseOidc<User> = {
-    (params?: { assert?: undefined }): Oidc_vue<User>;
+    (params?: { assert?: undefined }): ComputedRef<Oidc_vue<User>>;
     (params: { assert: "user logged in" }): Oidc_vue.LoggedIn<User>;
     (params: { assert: "user not logged in" }): Oidc_vue.NotLoggedIn;
 };
 
 export type Oidc_vue<User> =
+    | (Oidc_vue.NotReady & {
+          isUserLoggedIn?: never;
+          issuerUri?: never;
+          clientId?: never;
+          validRedirectUri?: never;
+
+          logout?: never;
+          renewTokens?: never;
+          startAuthorization?: never;
+          authorizationResult?: never;
+          isNewBrowserSession?: never;
+
+          login?: never;
+          user?: never;
+          refreshUser?: never;
+      })
     | (Oidc_vue.NotLoggedIn & {
           logout?: never;
           renewTokens?: never;
@@ -37,22 +53,29 @@ export type Oidc_vue<User> =
       });
 
 export namespace Oidc_vue {
+    export type NotReady = {
+        isOidcReady: false;
+        autoLogoutState: Readonly<ShallowRef<{ shouldDisplayWarning: false }>>;
+        initializationError: OidcInitializationError | undefined;
+    };
+
     export type NotLoggedIn = {
+        isOidcReady: true;
         isUserLoggedIn: false;
         issuerUri: string;
         clientId: string;
         validRedirectUri: string;
-        login: (params: {
+        login: (params?: {
             returnToUrl?: string;
             authorizationParams?: Record<string, string | string[] | undefined>;
             transformAuthorizationUrl?: (params: { authorizationUrl: string }) => string;
-            doesCurrentHrefEnforceLogin?: boolean;
         }) => Promise<never>;
         autoLogoutState: Readonly<ShallowRef<{ shouldDisplayWarning: false }>>;
         initializationError: OidcInitializationError | undefined;
     };
 
     export type LoggedIn<User> = {
+        isOidcReady: true;
         isUserLoggedIn: true;
         issuerUri: string;
         clientId: string;
@@ -62,9 +85,7 @@ export namespace Oidc_vue {
         startAuthorization: Oidc.LoggedIn["startAuthorization"];
         authorizationResult: Oidc.LoggedIn["authorizationResult"];
         isNewBrowserSession: boolean;
-        /** Readonly ref; templates unwrap top-level refs automatically. */
         autoLogoutState: Readonly<ShallowRef<AutoLogoutState>>;
-        /** Replaced when the user is refreshed, preserving the application's User type. */
         user: Readonly<ShallowRef<User>>;
         refreshUser: () => Promise<void>;
     };
@@ -118,21 +139,6 @@ export namespace RuntimeConfigs {
 export type OidcSpaUtils<User> = {
     useOidc: UseOidc<User>;
     getOidc: GetOidc<User>;
-    OidcInitializationGate: DefineComponent<
-        { fallback?: VNodeChild },
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        {},
-        string,
-        {},
-        {},
-        {},
-        SlotsType<{ default?: () => VNodeChild; fallback?: () => VNodeChild }>
-    >;
     enforceLogin: (to: RouteLocationNormalizedGenericLike) => Promise<void | never>;
 };
 

@@ -5,9 +5,11 @@ const { useOidc } = defineProps<{
     useOidc: UseOidc<{ name: string; canSeeAdminNavigation: boolean }>;
 }>();
 
-const { isUserLoggedIn, user } = useOidc();
+const oidc = useOidc();
 </script>
 
 <template>
-    <span v-if="isUserLoggedIn && user.canSeeAdminNavigation">{{ user.name }}</span>
+    <span v-if="oidc.isUserLoggedIn && oidc.user.value.canSeeAdminNavigation">
+        {{ oidc.user.value.name }}
+    </span>
 </template>

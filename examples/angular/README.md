@@ -8,17 +8,22 @@ The Angular integration can be used with an existing, independently maintained A
 backend is included to make this demo runnable and illustrate token validation with `oidc-spa/server`.
 Your backend can use its own authentication implementation.
 
-The application renders entirely in the browser. OIDC initialization completes before Angular renders
-the application, using the adapter's default behavior. There is no SSR or `withNonBlockingRendering()`.
+The application renders entirely in the browser. Angular renders the public shell while OIDC
+initializes. The header waits for `isOidcReady` before showing authentication controls.
 
 ## Development
 
 Use Node.js 24 LTS, or a version supported by `package.json`.
 
+From the repository root, build oidc-spa and start the Angular example:
+
 ```sh
 yarn install
-yarn dev
+yarn start-angular-example
 ```
+
+The example uses the workspace build in `../../dist` for the new Angular adapter API. Once that
+build exists, you can also run `yarn install` and `yarn dev` from `examples/angular`.
 
 Open <http://app.localhost:3000>. npm and pnpm work too. The development command starts Angular CLI on
 port 3000 and Express on port 3001. Angular proxies `/api/**` to Express, so browser requests use the
@@ -32,8 +37,6 @@ for development.
 Restart the server and reload the page after changing providers. Settings are loaded at runtime,
 including in production; changing providers does not require rebuilding Angular. The OIDC client must
 allow <http://app.localhost:3000> as an application origin and redirect destination.
-
-To use the local oidc-spa source, run `yarn start-angular-example` from the repository root.
 
 ## Pages
 
@@ -52,6 +55,9 @@ To use the local oidc-spa source, run `yarn start-angular-example` from the repo
 - `src/app/oidc.ts` defines `User_client` with `withUser()`, exports the Angular utilities and
   declares the `REQUIRE_ACCESS_TOKEN` context token. Components read the profile through the
   `user()` signal returned by `injectOidc()`.
+- `src/app/components/app-header/app-header.ts` keeps navigation visible during initialization. Once
+  `isOidcReady` is true, it uses `isUserLoggedIn` to choose between the profile and logout controls
+  or login and registration.
 - `src/app/app.config.ts` registers `provideOidc()` and `createOidcInterceptor()`. The interceptor
   attaches an access token only when a request sets `REQUIRE_ACCESS_TOKEN`.
 - `enforceLoginGuard` throws the original `OidcInitializationError` when authentication cannot be
@@ -62,16 +68,16 @@ To use the local oidc-spa source, run `yarn start-angular-example` from the repo
   `src/app/pages/protected/protected.routes.ts` and inherit this guard without changing their URLs.
   The admin route also checks `canSeeAdminNavigation` in `canActivate`; non-admin users see an alert
   and are redirected home before the page loads.
-- `src/app/pages/protected/protected-layout.ts` mounts the protected pages and
-  `AutoLogoutWarningOverlay`. The header remains in the root app component. Home, not-found and
-  inactivity logout pages are outside the protected branch.
+- The root component in `src/app/app.ts` mounts `AutoLogoutWarningOverlay` whenever the user is
+  signed in, so the warning can appear on both public and protected pages.
 - `autoLogout_returnToUrl` in `src/app/app.config.ts` sends users to `/inactivity-logout` after
   automatic logout, saving the previous URL in `return_url`. The resume link returns to that URL;
   the shared guard starts sign-in when needed.
 - `src/app/services/todo.service.ts` uses `HttpClient` with
   `context: new HttpContext().set(REQUIRE_ACCESS_TOKEN, true)` on each protected request. The
-  interceptor gets a current access token and attaches it; early initialization handles DPoP when
-  supported by the provider.
+  interceptor attaches a current access token when one is available. The API still handles
+  authorization and returns its own HTTP response. Early initialization handles DPoP when supported
+  by the provider.
 
 `provideOidc()` accepts a configuration object, a synchronous getter, or an asynchronous getter.
 For example, the configuration can be supplied directly:
@@ -138,6 +144,7 @@ the API and the static SPA, including deep-link fallback, on port 3000. `PORT` o
 port; `API_PORT` overrides the development API port (3001). No Angular server renderer is involved.
 
 The initial scaffold was generated with Angular CLI 22.2.4 using routing, CSS, `--ssr=false` and
-`--minimal`. Direct dependencies are pinned; lockfiles are ignored and no package manager is imposed.
+`--minimal`. Third-party dependencies are pinned. Lockfiles are ignored and no package manager is
+imposed.
 
 See the [oidc-spa documentation](https://docs.oidc-spa.dev/) for more details.

@@ -21,6 +21,22 @@ export type UseOidc<User> = {
 };
 
 export type Oidc_react<User> =
+    | (Oidc_react.NotReady & {
+          isUserLoggedIn?: never;
+          issuerUri?: never;
+          clientId?: never;
+          validRedirectUri?: never;
+
+          logout?: never;
+          renewTokens?: never;
+          startAuthorization?: never;
+          authorizationResult?: never;
+          isNewBrowserSession?: never;
+
+          login?: never;
+          user?: never;
+          refreshUser?: never;
+      })
     | (Oidc_react.NotLoggedIn & {
           logout?: never;
           renewTokens?: never;
@@ -29,23 +45,34 @@ export type Oidc_react<User> =
           isNewBrowserSession?: never;
           user?: never;
           refreshUser?: never;
+          suspensePromise?: never;
       })
     | (Oidc_react.LoggedIn<User> & {
           login?: never;
           initializationError?: never;
+          suspensePromise?: never;
       });
 
 export namespace Oidc_react {
+    export type NotReady = {
+        isOidcReady: false;
+        suspensePromise: Promise<void | never>;
+        autoLogoutState: {
+            shouldDisplayWarning: false;
+        };
+        initializationError: OidcInitializationError | undefined;
+    };
+
     export type NotLoggedIn = {
+        isOidcReady: true;
         isUserLoggedIn: false;
         issuerUri: string;
         clientId: string;
         validRedirectUri: string;
-        login: (params: {
+        login: (params?: {
             returnToUrl?: string;
             authorizationParams?: Record<string, string | string[] | undefined>;
             transformAuthorizationUrl?: (params: { authorizationUrl: string }) => string;
-            doesCurrentHrefEnforceLogin?: boolean;
         }) => Promise<never>;
         autoLogoutState: {
             shouldDisplayWarning: false;
@@ -54,6 +81,7 @@ export namespace Oidc_react {
     };
 
     export type LoggedIn<User> = {
+        isOidcReady: true;
         isUserLoggedIn: true;
         issuerUri: string;
         clientId: string;
@@ -117,11 +145,11 @@ export namespace RuntimeConfigs {
 export type OidcSpaUtils<User> = {
     useOidc: UseOidc<User>;
     getOidc: GetOidc<User>;
-    OidcInitializationGate: (props: { fallback?: ReactNode; children: ReactNode }) => ReactNode;
     enforceLogin: (loaderContext: LoaderContext) => Promise<void | never>;
     withLoginEnforced: <Props extends Record<string, unknown>>(params: {
         component: ComponentType<Props>;
         errorComponent?: ComponentType<{ oidcInitializationError: OidcInitializationError }>;
+        pendingComponent?: ComponentType;
     }) => (props: Props) => ReactNode;
 };
 
