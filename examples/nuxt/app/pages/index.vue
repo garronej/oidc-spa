@@ -11,8 +11,7 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/tree/main/examples/nu
         </p>
         <p class="guide-note">
             Authentication uses <code>oidc-spa/vue</code> directly. The Nuxt module currently requires
-            <code>ssr: false</code>, with <code>OidcInitializationGate</code> at the root of the
-            application.
+            <code>ssr: false</code>. Public pages and navigation render while authentication initializes.
         </p>
         <div class="example-links">
             <NuxtLink to="/todo-list">
@@ -29,23 +28,22 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/tree/main/examples/nu
             <h2 id="integration-heading">How the integration is set up</h2>
             <ol>
                 <li>
-                    <h3>Initialize authentication before mounting the application</h3>
+                    <h3>Handle authentication callbacks before Nuxt starts</h3>
                     <p>
                         <code>nuxt.config.ts</code> registers <code>oidc-spa/nuxt-module</code>, which
                         installs the Vite plugin with DPoP and browser runtime protection enabled. It
-                        processes authentication callbacks before Nuxt starts.
-                        <code>app/app.vue</code> wraps the header, layouts, and pages in
-                        <code>OidcInitializationGate</code>, which waits for authentication
-                        initialization before displaying its children.
+                        processes authentication callbacks before Nuxt starts. The header checks
+                        <code>isOidcReady</code> before showing login or account controls.
                     </p>
                 </li>
                 <li>
                     <h3>Define your user and provider configuration</h3>
                     <p>
                         <code>app/oidc.ts</code> uses the same builder as the Vue and React examples.
-                        Components destructure <code>useOidc()</code>; Vue templates unwrap the readonly
-                        user and inactivity refs. Configuration comes from Nuxt's public runtime config.
-                        Mock mode works without an identity provider.
+                        Unasserted calls to <code>useOidc()</code> return a computed ref that Vue
+                        templates unwrap. Components that expect a specific login state can use an
+                        assertion. Configuration comes from Nuxt's public runtime config. Mock mode works
+                        without an identity provider.
                     </p>
                     <pre><code>const { user } = useOidc({ assert: "user logged in" });</code></pre>
                 </li>
@@ -73,9 +71,10 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/tree/main/examples/nu
                 <li>
                     <h3>Resume after inactivity logout</h3>
                     <p>
-                        The authenticated layout displays inactivity warnings. Automatic logout returns
-                        to the public inactivity page, which offers a same-origin link back to the
-                        previous page. The route middleware handles sign-in when needed.
+                        <code>app/app.vue</code> mounts the inactivity warning for signed-in users on
+                        every page. Automatic logout returns to the public inactivity page, which offers
+                        a same-origin link back to the previous page. The route middleware handles
+                        sign-in when needed.
                     </p>
                 </li>
             </ol>

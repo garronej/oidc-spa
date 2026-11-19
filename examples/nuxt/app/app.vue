@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { OidcInitializationGate } from "./oidc";
+import { useOidc } from "./oidc";
+
+const oidc = useOidc();
 </script>
 
 <template>
-    <OidcInitializationGate>
-        <AppHeader />
-        <main>
-            <NuxtLayout>
-                <NuxtPage />
-            </NuxtLayout>
-        </main>
-    </OidcInitializationGate>
+    <AppHeader />
+    <main>
+        <NuxtPage />
+    </main>
+    <AutoLogoutWarningOverlay v-if="oidc.isUserLoggedIn" />
 </template>

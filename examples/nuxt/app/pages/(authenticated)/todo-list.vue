@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useAuthenticatedFetch } from "~/composables/useAuthenticatedFetch";
 
-definePageMeta({ requiresAuth: true, layout: "authenticated" });
+definePageMeta({ requiresAuth: true });
 const apiFetch = useAuthenticatedFetch();
 const { data: todos, error, refresh } = await useFetch("/api/todos", { $fetch: apiFetch });
 

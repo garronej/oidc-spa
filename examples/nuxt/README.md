@@ -8,9 +8,8 @@ npm create nuxt@latest examples/nuxt -- --template v4 --no-install --no-gitInit 
 ```
 
 It uses `oidc-spa/vue` and `oidc-spa/nuxt-module`, which currently requires
-`ssr: false` in `nuxt.config.ts`. The example places `OidcInitializationGate` at the
-root, around the header, layouts, and pages. Page components mount in the browser
-after authentication initialization.
+`ssr: false` in `nuxt.config.ts`. Public pages and navigation render while authentication
+initializes. The header waits for `isOidcReady` before showing authentication controls.
 
 ## Run locally
 
@@ -48,14 +47,14 @@ introspection secrets, expected API audiences, and storage credentials use priva
 -   `/inactivity-logout`: public inactivity message and a same-origin resume link.
 
 `app/oidc.ts` defines the application user and runtime configuration with the same
-builder as the Vue and React examples. Components destructure `useOidc()` directly;
-Vue templates unwrap the user and inactivity refs. Logged-in and logged-out header
-buttons use the same asserted calls as the React example.
+builder as the Vue and React examples. Unasserted calls to `useOidc()` return a computed
+ref that templates unwrap. The header buttons use asserted calls after the header has
+established the user's state.
 
 Protected pages live under `app/pages/(authenticated)/`, which adds no URL segment.
-They declare `requiresAuth: true` and use the authenticated layout for the inactivity
-warning. `app/middleware/auth.global.ts` runs login enforcement in the browser and
-redirects initialization failures to the error page.
+They declare `requiresAuth: true`. `app/middleware/auth.global.ts` runs login enforcement
+in the browser and redirects initialization failures to the error page.
+`app/app.vue` mounts the inactivity warning for signed-in users on every page.
 
 `nuxt.config.ts` registers `oidc-spa/nuxt-module` in `modules` and configures it through
 `oidcSpa`. The module installs the existing Vite plugin, which performs early callback

@@ -3,7 +3,7 @@ import { useOidc } from "../oidc";
 import AuthButtonsLoggedIn from "./AuthButtonsLoggedIn.vue";
 import AuthButtonsNotLoggedIn from "./AuthButtonsNotLoggedIn.vue";
 
-const { isUserLoggedIn, user } = useOidc();
+const oidc = useOidc();
 </script>
 
 <template>
@@ -13,12 +13,15 @@ const { isUserLoggedIn, user } = useOidc();
             <nav aria-label="Main navigation">
                 <NuxtLink to="/">Home</NuxtLink>
                 <NuxtLink to="/todo-list">Todos</NuxtLink>
-                <NuxtLink v-if="isUserLoggedIn && user.canSeeAdminNavigation" to="/todo-list-admin">
+                <NuxtLink
+                    v-if="oidc.isUserLoggedIn && oidc.user.value.canSeeAdminNavigation"
+                    to="/todo-list-admin"
+                >
                     Admin
                 </NuxtLink>
             </nav>
-            <div class="actions">
-                <AuthButtonsLoggedIn v-if="isUserLoggedIn" />
+            <div v-if="oidc.isOidcReady" class="actions">
+                <AuthButtonsLoggedIn v-if="oidc.isUserLoggedIn" />
                 <AuthButtonsNotLoggedIn v-else />
             </div>
         </div>

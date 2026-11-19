@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useOidc } from "../oidc";
 
-const { initializationError } = useOidc();
+const oidc = useOidc();
 
 function reload() {
     window.location.reload();
@@ -11,7 +11,7 @@ function reload() {
 <template>
     <article role="alert">
         <h1>Authentication unavailable</h1>
-        <p>{{ initializationError?.message }}</p>
+        <p>{{ oidc.initializationError?.message }}</p>
         <div class="actions">
             <button type="button" @click="reload">Try again</button>
             <NuxtLink to="/">Return home</NuxtLink>

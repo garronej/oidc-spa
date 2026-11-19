@@ -1,7 +1,7 @@
 import { enforceLogin } from "../oidc";
 
 export default defineNuxtRouteMiddleware(async to => {
-    // Nuxt also runs route middleware during SSR, before the root gate mounts.
+    // Login is enforced in the browser.
     if (import.meta.server) {
         return;
     }
