@@ -5,7 +5,9 @@ import type { OptionallyAsyncGetterOrDirectValue } from "../tools/GetterOrDirect
 
 export type OidcSpa<User, Excluded extends "withUser" | "withRuntimeConfigs" = never> = Omit<
     {
-        withUser: <User>(createUser: CreateClientUser<User>) => OidcSpa<User, Excluded | "withUser">;
+        withUser: <User>(
+            createClientUser: CreateClientUser<User>
+        ) => OidcSpa<User, Excluded | "withUser">;
     },
     Excluded
 > &
@@ -26,30 +28,28 @@ export type OidcSpa<User, Excluded extends "withUser" | "withRuntimeConfigs" = n
         : {});
 
 function createOidcSpa<User>(params: {
-    createUser: CreateClientUser<User> | undefined;
+    createClientUser: CreateClientUser<User> | undefined;
     getRuntimeConfigsOrRuntimeConfigs:
         | OptionallyAsyncGetterOrDirectValue<void, RuntimeConfigs>
         | undefined;
 }): OidcSpa<User> {
     return {
-        withUser: createUser =>
+        withUser: createClientUser =>
             createOidcSpa({
-                createUser,
+                createClientUser,
                 getRuntimeConfigsOrRuntimeConfigs: params.getRuntimeConfigsOrRuntimeConfigs
             }) as any,
         // @ts-expect-error
-        withRuntimeConfigs: (
-            getRuntimeConfigsOrRuntimeConfigs: OptionallyAsyncGetterOrDirectValue<void, RuntimeConfigs>
-        ) =>
+        withRuntimeConfigs: getRuntimeConfigsOrRuntimeConfigs =>
             createOidcSpa({
-                ...params,
+                createClientUser: params.createClientUser,
                 getRuntimeConfigsOrRuntimeConfigs
-            }),
+            }) as any,
         createUtils: () => {
-            assert(params.createUser !== undefined);
+            assert(params.createClientUser !== undefined);
             assert(params.getRuntimeConfigsOrRuntimeConfigs !== undefined);
             return createUtils({
-                createUser: params.createUser,
+                createClientUser: params.createClientUser,
                 getRuntimeConfigsOrRuntimeConfigs: params.getRuntimeConfigsOrRuntimeConfigs
             });
         }
@@ -57,6 +57,6 @@ function createOidcSpa<User>(params: {
 }
 
 export const oidcSpa = createOidcSpa<unknown>({
-    createUser: undefined,
+    createClientUser: undefined,
     getRuntimeConfigsOrRuntimeConfigs: undefined
 });

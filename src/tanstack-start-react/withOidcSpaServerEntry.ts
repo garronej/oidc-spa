@@ -4,7 +4,7 @@ import type { Register } from "@tanstack/react-router";
 import type { RequestHandler } from "@tanstack/react-start-server";
 import { getStateDataCookies } from "../core/StateDataCookie";
 
-export function __withOidcSpaServerEntry<T extends { fetch: RequestHandler<Register> }>(
+export function withOidcSpaServerEntry<T extends { fetch: RequestHandler<Register> }>(
     serverEntry_original: T
 ): T {
     return {

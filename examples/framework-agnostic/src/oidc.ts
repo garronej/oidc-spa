@@ -164,6 +164,7 @@ export async function enforceLogin(toHref: string): Promise<void> {
             returnToUrl: toHref,
             doesCurrentHrefEnforceLogin: toHref.replace(/\/$/, "") === location.href.replace(/\/$/, "")
         });
+        // NOTE: Never Here
     }
 }
 

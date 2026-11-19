@@ -1,3 +1,5 @@
+import { getIsStateDataCookieEnabled } from "./StateDataCookie.toggle";
+
 export type StateDataCookie = {
     rootRelativeReturnToUrl: string;
 };
@@ -45,16 +47,6 @@ function parseStateDataCookie(params: { stateDataCookie_str: string }):
     return { stateDataCookie: { rootRelativeReturnToUrl }, time };
 }
 
-let isEnabled = false;
-
-export function enableStateDataCookie() {
-    isEnabled = true;
-}
-
-export function getIsStateDataCookieEnabled() {
-    return isEnabled;
-}
-
 const COOKIE_NAME_PREFIX = "oidc_";
 
 export function setStateDataCookieIfEnabled(params: {
@@ -82,7 +74,7 @@ export function setStateDataCookieIfEnabled(params: {
         });
     }
 
-    if (!isEnabled) {
+    if (!getIsStateDataCookieEnabled()) {
         return;
     }
 

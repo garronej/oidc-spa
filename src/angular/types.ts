@@ -24,6 +24,22 @@ export type InjectOidc<User> = {
 };
 
 export type Oidc_angular<User> =
+    | (Oidc_angular.NotReady & {
+          isUserLoggedIn?: never;
+          issuerUri?: never;
+          clientId?: never;
+          validRedirectUri?: never;
+
+          logout?: never;
+          renewTokens?: never;
+          startAuthorization?: never;
+          authorizationResult?: never;
+          isNewBrowserSession?: never;
+
+          login?: never;
+          user?: never;
+          refreshUser?: never;
+      })
     | (Oidc_angular.NotLoggedIn & {
           logout?: never;
           renewTokens?: never;
@@ -39,18 +55,24 @@ export type Oidc_angular<User> =
       });
 
 export namespace Oidc_angular {
+    export type NotReady = {
+        isOidcReady: false;
+        autoLogoutState: Signal<{
+            shouldDisplayWarning: false;
+        }>;
+        initializationError: OidcInitializationError | undefined;
+    };
+
     export type NotLoggedIn = {
+        isOidcReady: true;
         isUserLoggedIn: false;
         issuerUri: string;
         clientId: string;
         validRedirectUri: string;
-        /** Remains pending during SSR. Gate auth UI with @defer (when oidc.prInitialized | async). */
-        prInitialized: Promise<true>;
-        login: (params: {
+        login: (params?: {
             returnToUrl?: string;
             authorizationParams?: Record<string, string | string[] | undefined>;
             transformAuthorizationUrl?: (params: { authorizationUrl: string }) => string;
-            doesCurrentHrefEnforceLogin?: boolean;
         }) => Promise<never>;
         autoLogoutState: Signal<{
             shouldDisplayWarning: false;
@@ -59,12 +81,11 @@ export namespace Oidc_angular {
     };
 
     export type LoggedIn<User> = {
+        isOidcReady: true;
         isUserLoggedIn: true;
         issuerUri: string;
         clientId: string;
         validRedirectUri: string;
-        /** Remains pending during SSR. Gate auth UI with @defer (when oidc.prInitialized | async). */
-        prInitialized: Promise<true>;
         logout: Oidc.LoggedIn["logout"];
         renewTokens: Oidc.LoggedIn["renewTokens"];
         startAuthorization: Oidc.LoggedIn["startAuthorization"];
@@ -125,7 +146,7 @@ export type OidcSpaUtils<User> = {
     provideOidc: (
         getRuntimeConfigsOrRuntimeConfigs: OptionallyAsyncGetterOrDirectValue<void, RuntimeConfigs>
     ) => EnvironmentProviders;
-    /** Can be injected during SSR; auth state must only be read after prInitialized resolves. */
+    /** Read isOidcReady before accessing ready-only properties; this state can be read during SSR. */
     injectOidc: InjectOidc<User>;
     getOidc: GetOidc<User>;
     createOidcInterceptor: (params: {
@@ -133,6 +154,7 @@ export type OidcSpaUtils<User> = {
          * May inject services. Return false before reading auth state for requests that load
          * runtime configuration. Pending auth reads are retried once core is ready.
          * Requests made by createUser must not depend on the user being constructed.
+         * If a token is unavailable, forwards the original request and leaves its response to HttpClient.
          */
         shouldInjectAccessToken: (req: HttpRequest<unknown>) => boolean;
     }) => HttpInterceptorFn;

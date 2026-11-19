@@ -199,6 +199,7 @@ function fixture({ browser = true, loggedIn = true, envNames = [] } = {}) {
     if (browser)
         Object.assign(context, {
             window: { location, document, history, setTimeout, clearTimeout },
+            location,
             document,
             navigator: {}
         });
@@ -230,6 +231,15 @@ function fixture({ browser = true, loggedIn = true, envNames = [] } = {}) {
     };
 }
 
+function assertFailedInitialization(state, error) {
+    assert.equal(state.isOidcReady, false);
+    assert.equal(state.isUserLoggedIn, undefined);
+    assert.equal(state.initializationError, error);
+    assert.equal(state.issuerUri, undefined);
+    assert.equal(state.clientId, undefined);
+    assert.equal(state.validRedirectUri, undefined);
+}
+
 for (const asynchronous of [false, true]) {
     test(`configuration errors reach navigation boundaries, async=${asynchronous}`, async () => {
         const f = fixture();
@@ -247,7 +257,12 @@ for (const asynchronous of [false, true]) {
         assert.equal(oidc.clientId, "not-resolved-yet");
         assert.equal(oidc.validRedirectUri, "https://app.test/");
         assert.equal(await utils.getOidc(), oidc);
-        await assert.rejects(utils.getOidc({ assert: "user logged in" }), e => e === error);
+        assert.equal(await utils.getOidc({ assert: "user not logged in" }), oidc);
+        await assert.rejects(oidc.login({ doesCurrentHrefEnforceLogin: false }), e => e === error);
+        await assert.rejects(
+            utils.getOidc({ assert: "user logged in" }),
+            e => e.name === "Error" && /not currently logged in/.test(e.message)
+        );
         await assert.rejects(
             utils.enforceLogin(navigation("preload")),
             e => e !== error && /not yet logged in/.test(e.message)
@@ -259,16 +274,10 @@ for (const asynchronous of [false, true]) {
         assert.equal(initialState.isOidcReady, false);
         assert.equal(initialState.initializationError, undefined);
         f.commit();
-        const state = f.render(utils.useOidc);
-        assert.equal(state.isOidcReady, true);
-        assert.equal(state.isUserLoggedIn, false);
-        assert.equal(state.initializationError, error);
-        assert.equal(state.issuerUri, oidc.issuerUri);
-        assert.equal(state.clientId, oidc.clientId);
-        assert.equal(state.validRedirectUri, oidc.validRedirectUri);
+        assertFailedInitialization(f.render(utils.useOidc), error);
         assert.throws(
             () => f.render(utils.useOidc, { assert: "user logged in" }),
-            e => e === error
+            e => e.name === "Error" && /before the auth state/.test(e.message)
         );
     });
 }
@@ -297,12 +306,10 @@ for (const adapter of ["react", "tanstack-start"]) {
         assert.equal(clientId, "not-resolved-yet");
         assert.equal(validRedirectUri, "https://app.test/");
         assert.equal(initializationError.cause.cause, cause);
+        f.render(utils.useOidc);
+        f.commit();
+        assertFailedInitialization(f.render(utils.useOidc), initializationError);
         if (adapter === "react") {
-            const state = f.render(utils.useOidc);
-            assert.equal(state.issuerUri, issuerUri);
-            assert.equal(state.clientId, clientId);
-            assert.equal(state.validRedirectUri, validRedirectUri);
-            assert.equal(state.initializationError, initializationError);
             const Protected = utils.withLoginEnforced({ component() {} });
             assert.equal(f.render(Protected).props.role, "alert");
         }
@@ -332,22 +339,13 @@ for (const adapter of ["react", "tanstack-start"]) {
                     ? "https://app.test/realms/demo"
                     : "https://auth.test/realms/demo"
             );
-            if (adapter === "react") {
-                const state = f.render(utils.useOidc);
-                assert.equal(state.issuerUri, oidc.issuerUri);
-                assert.equal(state.clientId, oidc.clientId);
-                assert.equal(state.initializationError, error);
-            } else {
-                assert.equal(f.render(utils.useOidc).isOidcReady, false);
-                f.commit();
-                const state = f.render(utils.useOidc);
-                assert.equal(state.isOidcReady, true);
-                assert.equal(state.isUserLoggedIn, false);
-                assert.equal(state.issuerUri, oidc.issuerUri);
-                assert.equal(state.clientId, oidc.clientId);
-                assert.equal(state.validRedirectUri, oidc.validRedirectUri);
-                assert.equal(state.initializationError, error);
-            }
+            assert.equal(f.render(utils.useOidc).isOidcReady, false);
+            f.commit();
+            assertFailedInitialization(f.render(utils.useOidc), error);
+            await assert.rejects(
+                utils.getOidc({ assert: "user logged in" }),
+                e => e.name === "Error" && /not currently logged in/.test(e.message)
+            );
             await assert.rejects(enforceLogin(utils), e => e === error);
         });
     }
@@ -379,6 +377,13 @@ test("authorization errors are surfaced without starting another login", async (
     const utils = f.createUtils();
     await assert.rejects(utils.enforceLogin(navigation()), e => e === error);
     assert.equal((await utils.getOidc()).initializationError, error);
+    f.render(utils.useOidc);
+    f.commit();
+    const state = f.render(utils.useOidc);
+    assert.equal(state.isOidcReady, true);
+    assert.equal(state.isUserLoggedIn, false);
+    assert.equal(state.initializationError, error);
+    assert.equal(typeof state.login, "function");
     assert.equal(f.record.login.length, 0);
 });
 
@@ -446,19 +451,14 @@ for (const href of ["/public", "/private?tab=profile#details"]) {
         assert.equal(f.render(utils.useOidc).isOidcReady, false);
         user.reject(new Error("Profile unavailable"));
         await guard;
-        const state = f.render(utils.useOidc);
-        assert.equal(state.isOidcReady, true);
-        assert.equal(state.isUserLoggedIn, false);
-        const error = state.initializationError;
-        assert(error instanceof f.OidcInitializationError);
-        assert.equal(error, failure);
+        assertFailedInitialization(f.render(utils.useOidc), failure);
         assert.throws(
             () => f.render(utils.useOidc, { assert: "user logged in" }),
-            e => e === error
+            e => e.name === "Error" && /before the auth state/.test(e.message)
         );
         await assert.rejects(
             utils.enforceLogin({ ...navigation(), location: { href } }),
-            e => e === error
+            e => e === failure
         );
         assert.equal(await oidc.getAccessToken(), "access-token");
         assert.equal(f.record.login.length, 0);

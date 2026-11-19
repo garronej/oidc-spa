@@ -1,25 +1,14 @@
 "use client";
 
 import type { PropsWithChildren } from "react";
-import { OidcInitializationGate, withLoginEnforced } from "@/lib/oidc";
-import { AutoLogoutWarningOverlay } from "@/components/AutoLogoutWarningOverlay";
+import { withLoginEnforced } from "@/lib/oidc";
 
 const ProtectedLayout = withLoginEnforced({
-    component: ({ children }: PropsWithChildren) => (
-        <>
-            {children}
-            <AutoLogoutWarningOverlay />
-        </>
-    ),
+    component: ({ children }: PropsWithChildren) => children,
+    pendingComponent: () => null,
     errorComponent: ({ oidcInitializationError }) => (
-        <p role="alert">Authentication failed: {oidcInitializationError.message}</p>
+        <p role="alert">Authentication failed: {oidcInitializationError.toString()}</p>
     )
 });
 
-export default function Layout({ children }: PropsWithChildren) {
-    return (
-        <OidcInitializationGate>
-            <ProtectedLayout>{children}</ProtectedLayout>
-        </OidcInitializationGate>
-    );
-}
+export default ProtectedLayout;

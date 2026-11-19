@@ -2,10 +2,9 @@ import type { OidcSpaUtils, CreateClientUser } from "./types";
 import { createUtils } from "./createUtils";
 import { assert } from "../tools/tsafe/assert";
 
-export type OidcSpa<User, Excluded extends "withUser" | "withNonBlockingRendering" = never> = Omit<
+export type OidcSpa<User, Excluded extends "withUser" = never> = Omit<
     {
         withUser: <User>(createUser: CreateClientUser<User>) => OidcSpa<User, Excluded | "withUser">;
-        withNonBlockingRendering: () => OidcSpa<User, Excluded | "withNonBlockingRendering">;
     },
     Excluded
 > &
@@ -15,14 +14,9 @@ export type OidcSpa<User, Excluded extends "withUser" | "withNonBlockingRenderin
           }
         : {});
 
-function createOidcSpa<User>(params: {
-    providerAwaitsInitialization: boolean;
-    createUser: CreateClientUser<User> | undefined;
-}): OidcSpa<User> {
+function createOidcSpa<User>(params: { createUser: CreateClientUser<User> | undefined }): OidcSpa<User> {
     return {
         withUser: createUser => createOidcSpa({ ...params, createUser }) as any,
-        withNonBlockingRendering: () =>
-            createOidcSpa({ ...params, providerAwaitsInitialization: false }),
         // @ts-expect-error Only exposed after withUser(), as in the React SPA adapter.
         createUtils: () => {
             assert(params.createUser !== undefined);
@@ -32,6 +26,5 @@ function createOidcSpa<User>(params: {
 }
 
 export const oidcSpa = createOidcSpa<unknown>({
-    providerAwaitsInitialization: true,
     createUser: undefined
 });

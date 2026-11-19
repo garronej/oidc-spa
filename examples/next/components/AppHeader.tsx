@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
-import { useOidc, OidcInitializationGate } from "@/lib/oidc";
+import { useOidc } from "@/lib/oidc";
 
 export function AppHeader() {
+    const { isOidcReady, isUserLoggedIn, user } = useOidc();
+
     return (
         <header className="app-header">
             <div className="header-inner">
@@ -17,42 +19,21 @@ export function AppHeader() {
                     <AppNavLink href="/">Home</AppNavLink>
                     <AppNavLink href="/todo-list-trpc">Todos · tRPC</AppNavLink>
                     <AppNavLink href="/todo-list-api">Todos · API</AppNavLink>
-                    <OidcInitializationGate>
-                        <AdminLink />
-                    </OidcInitializationGate>
+                    {isUserLoggedIn && user.canSeeAdminNavigation && (
+                        <AppNavLink href="/todo-list-admin">Admin</AppNavLink>
+                    )}
                 </nav>
-                <div className="actions">
-                    <OidcInitializationGate>
-                        <AuthButtons />
-                    </OidcInitializationGate>
-                </div>
+                {isOidcReady && (isUserLoggedIn ? <AuthButtonsLoggedIn /> : <AuthButtonsNotLoggedIn />)}
             </div>
         </header>
     );
-}
-
-function AdminLink() {
-    const { isUserLoggedIn, user } = useOidc();
-
-    return (
-        isUserLoggedIn &&
-        user.canSeeAdminNavigation && <AppNavLink href="/todo-list-admin">Admin</AppNavLink>
-    );
-}
-
-function AuthButtons() {
-    const oidc = useOidc();
-
-    if (oidc.initializationError !== undefined) return null;
-
-    return oidc.isUserLoggedIn ? <AuthButtonsLoggedIn /> : <AuthButtonsNotLoggedIn />;
 }
 
 function AuthButtonsLoggedIn() {
     const { user, logout } = useOidc({ assert: "user logged in" });
 
     return (
-        <>
+        <div className="actions">
             <Link href="/account" className="avatar" aria-label="Open your account">
                 {/* The avatar URL comes from the configured identity provider. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -66,7 +47,7 @@ function AuthButtonsLoggedIn() {
             <button type="button" onClick={() => logout()}>
                 Logout
             </button>
-        </>
+        </div>
     );
 }
 
@@ -76,7 +57,7 @@ function AuthButtonsNotLoggedIn() {
     const keycloakUtils = isKeycloak({ issuerUri }) ? createKeycloakUtils({ issuerUri }) : undefined;
 
     return (
-        <>
+        <div className="actions">
             <button type="button" className="button-primary" onClick={() => login({})}>
                 Login
             </button>
@@ -92,11 +73,12 @@ function AuthButtonsNotLoggedIn() {
                     Register
                 </button>
             )}
-        </>
+        </div>
     );
 }
 
-function AppNavLink({ href, children }: { href: string; children: ReactNode }) {
+function AppNavLink(props: { href: string; children: ReactNode }) {
+    const { href, children } = props;
     const pathname = usePathname();
     return (
         <Link href={href} aria-current={pathname === href ? "page" : undefined}>

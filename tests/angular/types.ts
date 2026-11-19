@@ -1,4 +1,6 @@
 import type { Signal } from "@angular/core";
+import type { GetOidc as GetOidc_client } from "../../src/client/types";
+import type { GetOidc as GetOidc_vue } from "../../src/vue/types";
 import type {
     GetOidc as GetOidc_react,
     RuntimeConfigs as RuntimeConfigs_react,
@@ -21,11 +23,13 @@ import { assert, type Equals } from "../../src/tools/tsafe/assert";
 
 type User = { displayName: string };
 assert<Equals<GetOidc<User>, GetOidc_react<User>>>();
+assert<Equals<GetOidc<User>, GetOidc_client<User>>>();
+assert<Equals<GetOidc<User>, GetOidc_vue<User>>>();
 assert<Equals<RuntimeConfigs, RuntimeConfigs_react>>();
 assert<Equals<CreateClientUser<User>, CreateClientUser_react<User>>>();
 assert<
     Equals<
-        Omit<Oidc_angular.LoggedIn<User>, "prInitialized" | "user" | "autoLogoutState">,
+        Omit<Oidc_angular.LoggedIn<User>, "user" | "autoLogoutState">,
         Omit<Oidc_react.LoggedIn<User>, "user" | "autoLogoutState">
     >
 >();
@@ -37,7 +41,7 @@ assert<
 >();
 assert<
     Equals<
-        Omit<Oidc_angular.NotLoggedIn, "prInitialized" | "autoLogoutState">,
+        Omit<Oidc_angular.NotLoggedIn, "autoLogoutState">,
         Omit<Oidc_react.NotLoggedIn, "autoLogoutState">
     >
 >();
@@ -54,11 +58,14 @@ const { injectOidc, getOidc, provideOidc } = base.createUtils();
 export async function checkTypes() {
     const oidc = injectOidc();
     assert<Equals<typeof oidc, Oidc_angular<User>>>();
-    const { isUserLoggedIn, user, login } = oidc;
+    const { isOidcReady, isUserLoggedIn, user, login } = oidc;
     if (isUserLoggedIn) {
         assert<Equals<typeof user, Signal<User>>>();
-    } else {
+    } else if (isOidcReady) {
         assert<Equals<typeof login, Oidc_angular.NotLoggedIn["login"]>>();
+    } else {
+        assert<Equals<typeof isUserLoggedIn, undefined>>();
+        assert<Equals<typeof login, undefined>>();
     }
     const loggedIn = injectOidc({ assert: "user logged in" });
     assert<Equals<typeof loggedIn, Oidc_angular.LoggedIn<User>>>();
@@ -75,7 +82,9 @@ export async function checkTypes() {
     assert<Equals<typeof loggedOut, Oidc_angular.NotLoggedIn>>();
     assert<Equals<typeof loggedOut.initializationError, OidcInitializationError | undefined>>();
     loggedOut.login({});
-    loggedOut.login({ returnToUrl: "/", doesCurrentHrefEnforceLogin: true });
+    loggedOut.login({ returnToUrl: "/" });
+    // @ts-expect-error UI login does not expose the route guard option
+    loggedOut.login({ doesCurrentHrefEnforceLogin: true });
     // @ts-expect-error old login parameters were removed
     loggedOut.login({ redirectUrl: "/" });
     // @ts-expect-error logged-out consumers cannot read the user
@@ -102,9 +111,8 @@ export async function checkTypes() {
     utils.enforceLoginGuard({} as Parameters<typeof utils.enforceLoginGuard>[0]);
     // @ts-expect-error initialization errors are available on injectOidc()
     base.createUtils().injectOidcInitializationError;
-    const reordered = oidcSpa.withNonBlockingRendering().withUser(createUser).createUtils();
-    assert<Equals<typeof reordered.injectOidc, InjectOidc<User>>>();
-    assert<Equals<typeof reordered.getOidc, GetOidc<User>>>();
+    assert<Equals<typeof utils.injectOidc, InjectOidc<User>>>();
+    assert<Equals<typeof utils.getOidc, GetOidc<User>>>();
 
     provideOidc({ mode: "mock" });
     provideOidc({
@@ -128,8 +136,8 @@ export async function checkTypes() {
     oidcSpa.withUser({ createUser });
     // @ts-expect-error withUser can only be called once
     base.withUser(createUser);
-    // @ts-expect-error non-blocking rendering can only be selected once
-    base.withNonBlockingRendering().withNonBlockingRendering();
+    // @ts-expect-error rendering is non-blocking by default
+    base.withNonBlockingRendering();
     // @ts-expect-error auto-login mode has been removed
     base.withAutoLogin();
     // @ts-expect-error user mocking is handled inside the factory

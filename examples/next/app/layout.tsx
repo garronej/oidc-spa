@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { AppHeader } from "@/components/AppHeader";
+import { AutoLogoutWarningOverlay } from "@/components/AutoLogoutWarningOverlay";
 
 export const metadata: Metadata = {
     title: "oidc-spa + Next.js",
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <AppHeader />
                 <main>{children}</main>
             </body>
+            <AutoLogoutWarningOverlay />
         </html>
     );
 }

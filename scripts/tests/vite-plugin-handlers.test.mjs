@@ -66,7 +66,11 @@ for (const command of ["serve", "build"]) {
         for (const name of ["client", "ssr"]) {
             const { context, watched, emitted } = pluginContext(name);
             const server = await callHook(plugin, "load", context, f.server);
-            assert.match(server, /__withOidcSpaServerEntry/);
+            assert(
+                server.includes(
+                    'import { withOidcSpaServerEntry } from "oidc-spa/tanstack-start/server-entry";'
+                )
+            );
             assert.equal(
                 await callHook(plugin, "load", context, f.server + "?oidc-spa-original=true"),
                 f.serverSource
@@ -79,7 +83,7 @@ for (const command of ["serve", "build"]) {
                 assert(!client.includes("oidcEarlyInit"));
             } else {
                 assert.match(client, /oidcEarlyInit/);
-                assert.match(client, /if \(shouldLoadApp\)/);
+                assert.match(client, /if \(shouldLoadApp\) \{\s*enableSSRCapability\(\);\s*import\(/);
             }
             assert.equal(await callHook(plugin, "load", context, join(f.root, "unrelated.ts")), null);
             await callHook(plugin, "buildStart", context, {});
@@ -87,7 +91,9 @@ for (const command of ["serve", "build"]) {
             if (emitted.length) {
                 assert.equal(emitted[0].id, "virtual:oidc-spa/tanstack-start-client-bootstrap");
                 const id = await callHook(plugin, "resolveId", context, emitted[0].id);
-                assert.match(await callHook(plugin, "load", context, id), /oidcEarlyInit/);
+                const bootstrap = await callHook(plugin, "load", context, id);
+                assert.match(bootstrap, /oidcEarlyInit/);
+                assert.match(bootstrap, /if \(shouldLoadApp\) \{\s*enableSSRCapability\(\);\s*import\(/);
             }
             const transformed = await callHook(
                 plugin,
