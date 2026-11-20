@@ -3,10 +3,12 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "concurrently --kill-others \"vite\" \"tsx watch server/index.ts --api-only\"",
+        "dev": "concurrently --kill-others \"vite dev\" \"tsx watch server/index-node.ts --api-only\"",
         "generate-routes": "tsr generate",
         "typecheck": "tsr generate && tsc --noEmit",
-        "build": "vite build && tsc --noEmit && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/index.mjs",
+        "build:client": "vite build",
+        "build:server": "tsc --noEmit && esbuild server/index-node.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/index.mjs",
+        "build": "npm run build:client && npm run build:server",
         "start": "node dist/server/index.mjs"
     },
     "dependencies": {
