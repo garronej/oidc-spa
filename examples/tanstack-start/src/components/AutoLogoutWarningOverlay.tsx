@@ -2,7 +2,7 @@ import { useOidc } from "~/oidc";
 
 /** See: https://docs.oidc-spa.dev/auto-logout */
 export function AutoLogoutWarningOverlay() {
-    const { autoLogoutState } = useOidc({ assert: "user logged in" });
+    const { autoLogoutState } = useOidc();
 
     if (!autoLogoutState.shouldDisplayWarning) {
         return null;
@@ -13,7 +13,7 @@ export function AutoLogoutWarningOverlay() {
             <div>
                 <h2>Are you still there?</h2>
                 <p>You will be logged out in {autoLogoutState.secondsLeftBeforeAutoLogout} seconds.</p>
-                {/* Configure the warning with client.warnUserSecondsBeforeAutoLogout. */}
+                {/* Configure the warning with client.warnUserSecondsBeforeAutoLogout in withRuntimeConfig. */}
             </div>
         </div>
     );

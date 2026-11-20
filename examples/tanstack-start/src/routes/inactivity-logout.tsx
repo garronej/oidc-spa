@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { ClientOnly, createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 
 export const Route = createFileRoute("/inactivity-logout")({
@@ -15,7 +15,9 @@ function InactivityLogout() {
         <>
             <h1>You have been logged out due to inactivity</h1>
             <p>Sign in again to pick up where you left off.</p>
-            <a href={return_url}>Resume to where I was</a>
+            <ClientOnly fallback={<Link to="/">Return home</Link>}>
+                <a href={return_url}>Resume to where I was</a>
+            </ClientOnly>
         </>
     );
 }
