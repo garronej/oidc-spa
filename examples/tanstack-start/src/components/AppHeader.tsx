@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { ClientOnly, Link } from "@tanstack/react-router";
 import { createKeycloakUtils, isKeycloak } from "oidc-spa/keycloak-utils";
 import { useOidc } from "~/oidc";
 
@@ -8,18 +8,37 @@ export function AppHeader() {
     return (
         <header className="app-header">
             <div className="header-inner">
-                <Link to="/" className="brand">
-                    My App
-                </Link>
-                <nav aria-label="Main navigation">
-                    <Link to="/" activeOptions={{ exact: true }}>
-                        Home
+                <ClientOnly
+                    fallback={
+                        <a href="/" className="brand">
+                            My App
+                        </a>
+                    }
+                >
+                    <Link to="/" className="brand">
+                        My App
                     </Link>
-                    <Link to="/todo-list-server-function">Todos · Server function</Link>
-                    <Link to="/todo-list-api">Todos · API</Link>
-                    {isUserLoggedIn && user.canSeeAdminNavigation && (
-                        <Link to="/todo-list-admin">Admin</Link>
-                    )}
+                </ClientOnly>
+                <nav aria-label="Main navigation">
+                    {/* The same static shell can hydrate at any return URL after login. */}
+                    <ClientOnly
+                        fallback={
+                            <>
+                                <a href="/">Home</a>
+                                <a href="/todo-list-server-function">Todos · Server function</a>
+                                <a href="/todo-list-api">Todos · API</a>
+                            </>
+                        }
+                    >
+                        <Link to="/" activeOptions={{ exact: true }}>
+                            Home
+                        </Link>
+                        <Link to="/todo-list-server-function">Todos · Server function</Link>
+                        <Link to="/todo-list-api">Todos · API</Link>
+                        {isUserLoggedIn && user.canSeeAdminNavigation && (
+                            <Link to="/todo-list-admin">Admin</Link>
+                        )}
+                    </ClientOnly>
                 </nav>
                 <div className="actions">
                     <AuthButtons />
