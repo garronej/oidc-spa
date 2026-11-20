@@ -3,9 +3,11 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "concurrently --kill-others \"vite\" \"tsx watch server/index.ts --api-only\"",
+        "dev": "concurrently --kill-others \"vite dev\" \"tsx watch server/index-node.ts --api-only\"",
         "typecheck": "tsc --noEmit",
-        "build": "vite build && tsc --noEmit && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/index.mjs",
+        "build:client": "vite build",
+        "build:server": "tsc --noEmit && esbuild server/index-node.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/index.mjs",
+        "build": "npm run build:client && npm run build:server",
         "start": "node dist/server/index.mjs"
     },
     "dependencies": {
@@ -14,7 +16,7 @@
         "@upstash/redis": "1.39.0",
         "dotenv": "18.0.9",
         "express": "5.3.0",
-        "oidc-spa": "11.0.0-rc.7",
+        "oidc-spa": "next",
         "react": "19.2.8",
         "react-dom": "19.2.8",
         "zod": "4.6.7",

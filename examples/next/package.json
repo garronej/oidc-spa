@@ -14,7 +14,7 @@
         "@trpc/server": "11.18.0",
         "@upstash/redis": "1.38.4",
         "next": "16.3.4",
-        "oidc-spa": "11.0.0-rc.5",
+        "oidc-spa": "next",
         "react": "19.2.8",
         "react-dom": "19.2.8",
         "server-only": "0.0.1",

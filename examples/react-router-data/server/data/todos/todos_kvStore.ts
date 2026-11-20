@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import type { TodoItem, TodosStore } from "./port";
+import type { TodoItem, TodosStore } from "./port.js";
 
 const DEFAULT_TODOS: ReadonlyArray<TodoItem> = [
     { id: 1, name: "Get groceries" },

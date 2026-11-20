@@ -37,8 +37,9 @@ export default function Home() {
                             </a>{" "}
                             registers the oidc-spa Vite plugin with browser runtime protection and DPoP.
                             Early initialization runs before application code, and can skip loading the
-                            app in the authentication callback iframe. In <code>src/main.tsx</code>, one{" "}
-                            <code>OidcInitializationGate</code> wraps the router.
+                            app in the authentication callback iframe. Public pages render while OIDC
+                            initializes; the header checks <code>isOidcReady</code> before displaying
+                            authentication controls.
                         </p>
                     </li>
                     <li>
@@ -81,11 +82,11 @@ export default function Home() {
                     <li>
                         <h3>Protect pages before their loaders run</h3>
                         <p>
-                            <code>src/router.tsx</code> groups protected pages under a pathless layout.
+                            <code>src/router.tsx</code> groups protected pages under a pathless route.
                             Its middleware calls <code>enforceLogin(args)</code> before child loaders and
                             actions run. A parent loader would not provide this ordering, because loaders
-                            run in parallel. The shared layout mounts the inactivity warning overlay;
-                            home and inactivity logout remain public.
+                            run in parallel. The root layout mounts the inactivity warning overlay on
+                            every page; home and inactivity logout remain public.
                         </p>
                         <pre>
                             <code>{`middleware: [

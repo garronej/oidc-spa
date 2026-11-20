@@ -1,9 +1,9 @@
 import express, { type ErrorRequestHandler } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { z } from "zod";
-import { appRouter } from "./trpc";
-import { getUser, HttpError } from "./oidc";
-import { getTodosStore, type TodoItem } from "./data/todos";
+import { appRouter } from "./trpc.js";
+import { getUser, HttpError } from "./oidc.js";
+import { getTodosStore, type TodoItem } from "./data/todos/index.js";
 
 export const app = express();
 app.disable("x-powered-by");

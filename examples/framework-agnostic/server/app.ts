@@ -1,9 +1,9 @@
-import express from "express";
+import express, { type ErrorRequestHandler } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { z } from "zod";
-import { appRouter } from "./trpc";
-import { getUser, HttpError } from "./oidc";
-import { getTodosStore, type TodoItem } from "./data/todos";
+import { appRouter } from "./trpc.js";
+import { getUser, HttpError } from "./oidc.js";
+import { getTodosStore, type TodoItem } from "./data/todos/index.js";
 
 export const app = express();
 app.disable("x-powered-by");
@@ -40,5 +40,23 @@ api.post("/todos", async (req, res) => {
     await store.updateTodos({ userId: user.id, todos: [...todos, todo] });
     res.status(201).json(todo);
 });
+
+api.use((_req, res) => {
+    res.status(404).json({ error: "API endpoint not found." });
+});
+
+const handleError: ErrorRequestHandler = (error, _req, res, _next) => {
+    if (error instanceof HttpError) {
+        res.status(error.status).json({ error: error.message });
+        return;
+    }
+    if (error?.type === "entity.parse.failed" || error?.type === "entity.too.large") {
+        res.status(error.status).json({ error: "Invalid JSON request body." });
+        return;
+    }
+    console.error(error);
+    res.status(500).json({ error: "An unexpected server error occurred." });
+};
+api.use(handleError);
 
 app.use("/api", api);

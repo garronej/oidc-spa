@@ -40,9 +40,8 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/blob/main/examples/vu
                         <a :href="`${sourceUrl}/vite.config.ts`"><code>vite.config.ts</code></a>
                         registers the oidc-spa Vite plugin with browser runtime protection and DPoP. It
                         handles early initialization and skips loading the app in the authentication
-                        callback iframe. <code>App.vue</code> wraps the application in
-                        <code>OidcInitializationGate</code>, which waits for the client and initial user
-                        before mounting its children.
+                        callback iframe. Public pages render while OIDC initializes; the header checks
+                        <code>isOidcReady</code> before displaying authentication controls.
                     </p>
                 </li>
                 <li>
@@ -76,12 +75,12 @@ const sourceUrl = "https://github.com/keycloakify/oidc-spa/blob/main/examples/vu
                     <h3>Protect pages with Vue Router</h3>
                     <p>
                         <code>src/pages/authenticated/</code> contains protected pages.
-                        <code>src/router.ts</code> groups them under a shared layout with
+                        <code>src/router.ts</code> groups them under a route with
                         <code>meta.requiresAuth</code>. Its navigation guard calls the
                         <code>enforceLogin()</code> helper with the destination route before a protected
                         page mounts. It catches initialization errors and redirects to a public
-                        authentication error page. The layout displays the inactivity warning; home,
-                        authentication errors, and inactivity logout remain public.
+                        authentication error page. The root app displays the inactivity warning on every
+                        page; home, authentication errors, and inactivity logout remain public.
                     </p>
                     <pre><code>router.beforeEach(async to =&gt; {
     if (to.meta.requiresAuth) {

@@ -28,7 +28,7 @@ const { validateAndGetAccessTokenClaims } = oidcSpa
             case "Keycloak":
                 return {
                     mode: "real",
-                    issuerUri: process.env.VITE_KEYCLOAK_ISSUER_URI!,
+                    issuerUri: process.env["VITE_KEYCLOAK_ISSUER_URI"]!,
                     accessTokenValidation: {
                         method: "offline JWT validation",
                         expectedAudience: process.env["KEYCLOAK_EXPECTED_ACCESS_TOKEN_AUDIENCE"]!
@@ -37,7 +37,7 @@ const { validateAndGetAccessTokenClaims } = oidcSpa
             case "Keycloak2":
                 return {
                     mode: "real",
-                    issuerUri: process.env.VITE_KEYCLOAK2_ISSUER_URI!,
+                    issuerUri: process.env["VITE_KEYCLOAK2_ISSUER_URI"]!,
                     accessTokenValidation: {
                         method: "introspection endpoint",
                         clientId: process.env["KEYCLOAK2_API_CLIENT_ID"]!,
@@ -47,16 +47,16 @@ const { validateAndGetAccessTokenClaims } = oidcSpa
             case "Auth0":
                 return {
                     mode: "real",
-                    issuerUri: process.env.VITE_AUTH0_ISSUER_URI!,
+                    issuerUri: process.env["VITE_AUTH0_ISSUER_URI"]!,
                     accessTokenValidation: {
                         method: "offline JWT validation",
-                        expectedAudience: process.env.VITE_AUTH0_API_IDENTIFIER!
+                        expectedAudience: process.env["VITE_AUTH0_API_IDENTIFIER"]!
                     }
                 };
             case "EntraID":
                 return {
                     mode: "real",
-                    issuerUri: process.env.VITE_ENTRA_ISSUER_URI!,
+                    issuerUri: process.env["VITE_ENTRA_ISSUER_URI"]!,
                     accessTokenValidation: {
                         method: "offline JWT validation",
                         expectedAudience: process.env["ENTRA_API_CLIENT_ID"]!

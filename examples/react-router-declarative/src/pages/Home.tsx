@@ -37,8 +37,9 @@ export default function Home() {
                             </a>{" "}
                             registers the oidc-spa Vite plugin with browser runtime protection and DPoP.
                             Early initialization runs before application code, and can skip loading the
-                            app in the authentication callback iframe. In <code>src/main.tsx</code>, one{" "}
-                            <code>OidcInitializationGate</code> wraps the router.
+                            app in the authentication callback iframe. Public pages render while OIDC
+                            initializes; the header checks <code>isOidcReady</code> before displaying
+                            authentication controls.
                         </p>
                     </li>
                     <li>
@@ -79,19 +80,19 @@ export default function Home() {
                         </p>
                     </li>
                     <li>
-                        <h3>Protect pages with a shared layout</h3>
+                        <h3>Protect pages with a route guard</h3>
                         <p>
                             <code>src/App.tsx</code> groups protected pages under a pathless route. Its
-                            layout uses <code>withLoginEnforced</code>, then renders its children and the
-                            inactivity warning overlay. The header stays outside that layout, while home
-                            and inactivity logout remain public.
+                            guard uses <code>withLoginEnforced</code> with <code>Outlet</code> to render
+                            its children after login. The root app displays the inactivity warning on
+                            every page, while home and inactivity logout remain public.
                         </p>
                         <pre>
-                            <code>{`export const AuthenticatedLayout = withLoginEnforced({
-  component: function AuthenticatedLayout() {
-    return <><Outlet /><AutoLogoutWarningOverlay /></>;
-  }
-});`}</code>
+                            <code>{`const LoginRequired = withLoginEnforced({ component: Outlet });
+
+<Route element={<LoginRequired />}>
+  {/* Protected routes */}
+</Route>`}</code>
                         </pre>
                     </li>
                     <li>
