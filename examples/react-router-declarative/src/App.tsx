@@ -1,10 +1,13 @@
 import { Suspense, lazy } from "react";
-import { Route, Routes } from "react-router";
+import { Outlet, Route, Routes } from "react-router";
 import { AppHeader } from "./components/AppHeader";
+import { AutoLogoutWarningOverlay } from "./components/AutoLogoutWarningOverlay";
+import { withLoginEnforced } from "./oidc";
 import Home from "./pages/Home";
 import InactivityLogout from "./pages/InactivityLogout";
 import NotFound from "./pages/NotFound";
-import { AuthenticatedLayout } from "./pages/protected/AuthenticatedLayout";
+
+const LoginRequired = withLoginEnforced({ component: Outlet });
 
 const TodoListTrpc = lazy(() => import("./pages/protected/TodoListTrpc"));
 const TodoListApi = lazy(() => import("./pages/protected/TodoListApi"));
@@ -20,7 +23,7 @@ export function App() {
                     <Routes>
                         <Route index element={<Home />} />
                         <Route path="inactivity-logout" element={<InactivityLogout />} />
-                        <Route element={<AuthenticatedLayout />}>
+                        <Route element={<LoginRequired />}>
                             <Route path="todo-list-trpc" element={<TodoListTrpc />} />
                             <Route path="todo-list-api" element={<TodoListApi />} />
                             <Route path="todo-list-admin" element={<TodoListAdmin />} />
@@ -30,6 +33,7 @@ export function App() {
                     </Routes>
                 </Suspense>
             </main>
+            <AutoLogoutWarningOverlay />
         </>
     );
 }

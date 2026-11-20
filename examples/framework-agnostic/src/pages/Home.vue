@@ -77,11 +77,11 @@ const user = useUser();</code></pre>
                     <h3>Protect pages with Vue Router</h3>
                     <p>
                         <code>src/pages/authenticated/</code> contains protected pages.
-                        <code>src/router.ts</code> groups them under a shared layout with
+                        <code>src/router.ts</code> groups them under a route with
                         <code>meta.requiresAuth</code>. Its navigation guard calls the local
                         <code>enforceLogin()</code> helper with the destination URL before a protected
-                        page mounts. The layout displays the inactivity warning; home and inactivity
-                        logout remain public.
+                        page mounts. The root app displays the inactivity warning on every page; home and
+                        inactivity logout remain public.
                     </p>
                     <pre><code>router.beforeEach(async to =&gt; {
     if (to.meta.requiresAuth) {

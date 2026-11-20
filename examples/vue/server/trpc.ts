@@ -1,10 +1,33 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
 import type { Request } from "express";
-import { getUser } from "./oidc";
-import { getTodosStore, type TodoItem } from "./data/todos";
+import { HttpError, getUser as getUser_generic } from "./oidc.js";
+import { getTodosStore, type TodoItem } from "./data/todos/index.js";
 
 const t = initTRPC.context<{ req: Request }>().create();
+
+async function getUser(req: Request) {
+    try {
+        return await getUser_generic(req);
+    } catch (error) {
+        if (!(error instanceof HttpError)) throw error;
+
+        const code = {
+            400: "BAD_REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            404: "NOT_FOUND",
+            500: "INTERNAL_SERVER_ERROR",
+            503: "SERVICE_UNAVAILABLE"
+        } as const;
+
+        throw new TRPCError({
+            code: code[error.status],
+            message: error.message,
+            cause: error
+        });
+    }
+}
 
 export const appRouter = t.router({
     todos: t.router({

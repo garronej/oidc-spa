@@ -3,7 +3,6 @@ import { Layout } from "./Layout";
 import Home from "./pages/Home";
 import InactivityLogout from "./pages/InactivityLogout";
 import NotFound from "./pages/NotFound";
-import { AuthenticatedLayout } from "./pages/protected/AuthenticatedLayout";
 import { enforceLogin } from "./oidc";
 
 export const router = createBrowserRouter([
@@ -14,7 +13,6 @@ export const router = createBrowserRouter([
             { index: true, Component: Home },
             { path: "inactivity-logout", Component: InactivityLogout },
             {
-                Component: AuthenticatedLayout,
                 middleware: [
                     async (args, next) => {
                         await enforceLogin(args);

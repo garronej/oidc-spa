@@ -12,7 +12,7 @@ export type User_client = {
     canSeeAdminNavigation: boolean;
 };
 
-export const { useOidc, getOidc, OidcInitializationGate, enforceLogin } = oidcSpa
+export const { useOidc, getOidc, enforceLogin } = oidcSpa
     .withUser<User_client>(async ({ isMock, idTokenClaims, accessToken }) => {
         if (isMock) {
             const user_mock: User_client = {

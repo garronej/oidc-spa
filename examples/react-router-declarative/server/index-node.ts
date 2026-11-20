@@ -1,13 +1,25 @@
 import "dotenv/config";
 import express from "express";
 import { fileURLToPath } from "node:url";
-import { app } from "./app";
+import { app } from "./app.js";
 
 // Vite proxies /api here during development. The production server also serves the SPA.
 const apiOnly = process.argv.includes("--api-only");
 if (!apiOnly) {
     const clientDir = fileURLToPath(new URL("../client/", import.meta.url));
-    app.use(express.static(clientDir));
+    app.use(
+        "/assets",
+        express.static(fileURLToPath(new URL("../client/assets/", import.meta.url)), {
+            maxAge: "1y",
+            immutable: true,
+            fallthrough: false
+        })
+    );
+    app.use(
+        express.static(clientDir, {
+            setHeaders: res => res.setHeader("Cache-Control", "no-cache")
+        })
+    );
     app.get("/{*path}", (_req, res) => {
         res.setHeader("Cache-Control", "no-cache");
         res.sendFile("index.html", { root: clientDir });

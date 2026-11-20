@@ -13,7 +13,6 @@ export const router = createRouter({
         { path: "/", component: () => import("./pages/Home.vue") },
         {
             path: "/",
-            component: () => import("./pages/authenticated/Layout.vue"),
             meta: { requiresAuth: true },
             children: [
                 {

@@ -1,6 +1,6 @@
-import { createNodeFsTodoStore } from "./todos_nodeFs";
-import { createKvStoreTodoStore } from "./todos_kvStore";
-import type { TodosStore, TodoItem } from "./port";
+import { createNodeFsTodoStore } from "./todos_nodeFs.js";
+import { createKvStoreTodoStore } from "./todos_kvStore.js";
+import type { TodosStore, TodoItem } from "./port.js";
 export type { TodoItem };
 
 let todosStore: TodosStore | undefined = undefined;
