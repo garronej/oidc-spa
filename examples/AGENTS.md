@@ -22,3 +22,6 @@ with different application frameworks. Use the stack the user selected in the se
     [framework-agnostic](https://framework-agnostic.oidc-spa.dev/).
 -   For providers other than Auth0, you can remove the configuration that makes the development
     server run at `http://app.localhost`.
+-   Ask question to the user about wether they prefer "offline JWT validation" or "introspection endpoint"
+    for validating tokens on the server. Explain advantage and tradeoff of each solution so they can make
+    an informed decision.
