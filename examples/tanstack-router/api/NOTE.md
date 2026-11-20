@@ -9,6 +9,10 @@ The deployment is configured in [`../vercel.json`](../vercel.json): it sets the
 build command and static output directory, routes `/api/*` requests to this
 function, and defines the SPA fallback and cache headers.
 
+The function explicitly loads the committed `../.env` as demo defaults. Vercel
+does not load it automatically at runtime, so `vercel.json` includes it in the
+function package. Variables configured in Vercel take precedence over the file.
+
 Vercel compiles this function separately from our standalone server bundle. The
 compiled code runs as native Node.js ESM, which requires explicit extensions in
 relative imports and explicit filenames for directory imports. That is why the
