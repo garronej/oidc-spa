@@ -51,7 +51,12 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.css"]
+            "styles": ["src/styles.css"],
+            "outputPath": {
+              "base": "dist",
+              "browser": "client",
+              "media": "assets"
+            }
           },
           "configurations": {
             "production": {

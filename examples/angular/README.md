@@ -22,8 +22,8 @@ yarn install
 yarn start-angular-example
 ```
 
-The example uses the workspace build in `../../dist` for the new Angular adapter API. Once that
-build exists, you can also run `yarn install` and `yarn dev` from `examples/angular`.
+The repository command builds oidc-spa and copies the workspace build into the example. To use the
+published `oidc-spa@next` package instead, run `yarn install` and `yarn dev` from `examples/angular`.
 
 Open <http://app.localhost:3000>. npm and pnpm work too. The development command starts Angular CLI on
 port 3000 and Express on port 3001. Angular proxies `/api/**` to Express, so browser requests use the
@@ -35,8 +35,9 @@ In the tracked `.env` file, choose `OIDC_PROVIDER` and configure the matching va
 for development.
 
 Restart the server and reload the page after changing providers. Settings are loaded at runtime,
-including in production; changing providers does not require rebuilding Angular. The OIDC client must
-allow <http://app.localhost:3000> as an application origin and redirect destination.
+including in production; changing providers does not require rebuilding Angular. Both server entry
+points load the committed `.env`; existing environment variables take precedence over the file.
+The OIDC client must allow <http://app.localhost:3000> as an application origin and redirect destination.
 
 ## Pages
 
@@ -99,6 +100,9 @@ environment values, rather than an oidc-spa configuration object. The request do
 
 ### Express companion
 
+- `server/app.ts` exports the shared Express application. `server/index-node.ts` starts the
+  standalone server; `api/index-vercel.ts` exposes a request handler for Vercel without calling
+  `app.listen()`.
 - `server/oidc.ts` configures token validation independently through `.withRuntimeConfigs()`.
   `extractRequestAuthContext()` and `validateAndGetAccessTokenClaims()` from `oidc-spa/server`
   validate the request, then `getUser(req)` maps the claims to `User_server`: `id` and `isAdmin`.
@@ -139,12 +143,55 @@ yarn build
 yarn start
 ```
 
-The build produces static Angular files and a Node server in `dist/angular-oidc-spa`. Express serves both
-the API and the static SPA, including deep-link fallback, on port 3000. `PORT` overrides the production
-port; `API_PORT` overrides the development API port (3001). No Angular server renderer is involved.
+`build:client` runs Angular CLI and writes the static SPA to `dist/client`. `build:server` typechecks
+the backend and bundles `server/index-node.ts` into `dist/server/index.mjs`. `build` runs both.
+Express serves the API and static SPA, including deep-link fallback, on port 3000. `PORT` overrides
+the production port; `API_PORT` overrides the development API port (3001). No Angular server renderer
+is involved. The server bundle leaves npm dependencies external, so a Node deployment also needs the
+production dependencies from `package.json`.
+
+Angular emits hashed JavaScript and CSS bundles at the client root, such as `/main-XXXXXXXX.js`,
+`/chunk-XXXXXXXX.js`, and `/styles-XXXXXXXX.css`. CSS resources are emitted under `/assets/`.
+Both the standalone server and Vercel use these cache policies:
+
+| Request                                         | Response                                           | Cache-Control                         |
+| ----------------------------------------------- | -------------------------------------------------- | ------------------------------------- |
+| `/api` and `/api/*`, all HTTP methods           | Shared Express API, including public OIDC settings | `no-store`                            |
+| Hashed JS/CSS bundles and `/assets/*`, GET/HEAD | Static build files                                 | `public, max-age=31536000, immutable` |
+| Other static files and page URLs, GET/HEAD      | Static file or SPA `index.html` fallback           | `no-cache`                            |
+
+Changed build assets get new filenames, so they can be cached for a year. HTML requires revalidation
+before reuse. Missing assets and hashed bundles return 404 instead of the SPA HTML. Public files such
+as `favicon.ico` and `userPictureFallback.svg` keep their original names and require revalidation.
+
+## Deploy on Vercel
+
+1. Set the project root to `examples/angular`.
+2. Use the committed `.env` for the demo provider defaults, or override settings in Vercel's
+   environment variables. Register the deployed origin and redirect URL with the selected provider.
+3. Set `KV_REST_API_URL` and `KV_REST_API_TOKEN` in Vercel for persistent todos; the deployed
+   function cannot use local filesystem storage.
+4. Deploy with the included `vercel.json`. It typechecks the application and builds only the client;
+   Vercel compiles and packages `api/index-vercel.ts` separately as a Node function.
+
+`outputDirectory: "dist/client"` publishes the Angular files to Vercel's CDN. The `/api/*` rewrite
+dispatches requests to `/api/index-vercel`, preserving their original path and HTTP method. Other
+page URLs fall back to `index.html`. Headers cover Angular's root-level hashed bundles as well as
+`/assets/`, while API responses remain uncached.
+
+The function explicitly loads `.env` relative to its own module, and `functions.includeFiles`
+includes that file in the backend package. Vercel environment variables take precedence. Only the
+function entry belongs under `api/`; shared backend modules stay under `server/`. Relative server
+imports use `.js` extensions, which TypeScript resolves to `.ts` sources and Node resolves to the
+compiled JavaScript. Vercel manages the HTTP server and does not run `npm start` or use
+`dist/server/index.mjs`.
+
+Unlike the Vite examples, Angular fetches its public OIDC settings from `/api/oidc-client-env` at
+runtime. Provider settings are not embedded in the static frontend. Vercel environment changes or
+changes to the packaged `.env` require a new deployment, but no Angular source changes.
 
 The initial scaffold was generated with Angular CLI 22.2.4 using routing, CSS, `--ssr=false` and
-`--minimal`. Third-party dependencies are pinned. Lockfiles are ignored and no package manager is
-imposed.
+`--minimal`. Third-party dependencies are pinned; `oidc-spa` follows the `next` release channel.
+Lockfiles are ignored and no package manager is imposed.
 
 See the [oidc-spa documentation](https://docs.oidc-spa.dev/) for more details.
