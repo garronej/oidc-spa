@@ -1,5 +1,0 @@
-{
-    "$schema": "https://openapi.vercel.sh/vercel.json",
-    "framework": "tanstack-start",
-    "installCommand": "yarn --cwd ../.. install && yarn --cwd ../.. build && yarn install && rm -rf node_modules/oidc-spa && cp -R ../../dist node_modules/oidc-spa"
-}

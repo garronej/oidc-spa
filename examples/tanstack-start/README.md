@@ -15,13 +15,13 @@ by `oidcFnMiddleware`; the other calls the `/api/todos` GET/POST endpoint protec
 Todo List Admin lets admins view todos grouped by user ID and delete individual items.
 Account displays the user's profile and provides account management actions when using Keycloak.
 
-The account and todo pages share the pathless `src/routes/_authenticated/route.tsx` layout, which
-calls `enforceLogin` once for all its children and mounts `AutoLogoutWarningOverlay`. Their URLs
-do not include `_authenticated`. The home and inactivity logout pages remain public.
+The account and todo pages share the pathless `src/routes/_authenticated/route.tsx` route, which
+calls `enforceLogin` once for all its children. Their URLs do not include `_authenticated`.
+The home and inactivity logout pages remain public.
 
-`AppHeader` stays in `src/routes/__root.tsx` so it can be server-rendered. The protected layout
-and its children render on the client. After an automatic logout, the inactivity page offers a
-link to resume the previous page, whose login guard handles sign-in when needed.
+`AppHeader` and `AutoLogoutWarningOverlay` stay in `src/routes/__root.tsx` so the warning can appear
+on every page. Protected pages render on the client. After an automatic logout, the inactivity
+page offers a link to resume the previous page, whose login guard handles sign-in when needed.
 
 ## Development
 
@@ -45,7 +45,52 @@ yarn start-tanstack-start-example
 
 ## Production
 
+`SPA_MODE` in `vite.config.ts` defaults to `true`. Start automatically discovers and prerenders
+static page paths and generates a separate `_shell.html`. No page list is needed. Public pages
+contain their rendered content; the protected routes inherit `ssr: false` and contain only the
+shell. API routes are excluded from page discovery. Parameterized routes need concrete URLs,
+either discovered by crawling links or supplied through Start's `pages` option.
+
+In development, public pages render on demand. Setting `SPA_MODE` to `false` restores
+request-time document rendering.
+
 ```sh
 yarn build
 yarn start
 ```
+
+This builds the default Nitro Node target. To generate the Vercel deployment artifact locally:
+
+```sh
+yarn build:vercel
+```
+
+Import the repository in Vercel with `examples/tanstack-start` as the project root and the TanStack
+Start framework preset. Nitro detects Vercel during deployment and writes `.vercel/output`.
+Nitro supplies the function, static-file routing, and immutable asset caching. The additions in
+`vite.config.ts` set document/API cache headers, serve the shell on OIDC callbacks, and adapt
+Nitro's default SSR fallback to Start's documented SPA routing:
+
+| Request                                  | Destination                                       | Cache-Control                         |
+| ---------------------------------------- | ------------------------------------------------- | ------------------------------------- |
+| `/?state=…`                              | Static `_shell.html`, preserving the callback URL | `no-cache`                            |
+| Discovered static page paths             | Prerendered HTML                                  | `no-cache`                            |
+| `/api/*` and `/_serverFn/*`, all methods | Nitro server function                             | `no-store`                            |
+| `/assets/*`                              | Static assets                                     | `public, max-age=31536000, immutable` |
+| Other page URLs, GET/HEAD                | Static `_shell.html`                              | `no-cache`                            |
+
+The callback rule runs before filesystem lookup so the prerendered home page cannot replace the
+shell on an OIDC response. API and server-function requests bypass the document fallback.
+
+No custom `src/server.ts` is required: Start's default server entry handles APIs, server functions,
+and build-time prerendering. The oidc-spa plugin automatically wraps that entry with
+`withOidcSpaServerEntry` for request-time SSR callbacks. Static callback routing runs at the CDN,
+before that entry is invoked.
+
+The installed Nitro Vercel preset routes all non-static requests to SSR by default. The build hook
+keeps its generated routing and changes only that final fallback: APIs and server functions go to
+the runtime; other GET/HEAD requests use `_shell.html`. Other hosting targets need equivalent SPA
+fallback routing if documents should be served entirely from static files.
+
+Use `KV_REST_API_URL` and `KV_REST_API_TOKEN` for persistent todos on Vercel. The filesystem store is
+for local development.
