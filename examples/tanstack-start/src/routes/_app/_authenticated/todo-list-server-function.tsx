@@ -1,15 +1,31 @@
 import { useState, type SubmitEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { fetchWithAuth } from "~/oidc";
-import type { TodoItem } from "~/data/todos";
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { oidcFnMiddleware } from "~/oidc";
+import { getTodosStore, type TodoItem } from "~/data/todos";
 
-export const Route = createFileRoute("/_authenticated/todo-list-api")({
-    loader: async () => {
-        const response = await fetchWithAuth("/api/todos");
+const getTodos = createServerFn({ method: "GET" })
+    .middleware([oidcFnMiddleware({ require: "authed request" })])
+    .handler(async ({ context: { oidc } }) => {
+        return getTodosStore().readTodos({ userId: oidc.user.id });
+    });
 
-        const todos: TodoItem[] = await response.json();
-        return todos;
-    },
+const addTodo = createServerFn({ method: "POST" })
+    .validator(z.string().trim().min(1))
+    .middleware([oidcFnMiddleware({ require: "authed request" })])
+    .handler(async ({ data, context: { oidc } }) => {
+        const todosStore = getTodosStore();
+        const userId = oidc.user.id;
+        const todos = await todosStore.readTodos({ userId });
+
+        const todo: TodoItem = { id: Date.now(), name: data };
+
+        await todosStore.updateTodos({ userId, todos: [...todos, todo] });
+    });
+
+export const Route = createFileRoute("/_app/_authenticated/todo-list-server-function")({
+    loader: () => getTodos(),
     component: TodoList,
     pendingComponent: () => <p>Loading todos...</p>
 });
@@ -28,13 +44,7 @@ function TodoList() {
         }
 
         setIsSubmitting(true);
-
-        await fetchWithAuth("/api/todos", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: newTodo })
-        });
-
+        await addTodo({ data: newTodo });
         setNewTodo("");
         await router.invalidate();
         setIsSubmitting(false);
@@ -42,8 +52,8 @@ function TodoList() {
 
     return (
         <>
-            <h1>Todo List (API)</h1>
-            <p>Your personal todo list, backed by an API route.</p>
+            <h1>Todo List (Server Function)</h1>
+            <p>Your personal todo list, backed by a server function.</p>
             {todos.length === 0 ? (
                 <p className="empty-state">No todos yet.</p>
             ) : (

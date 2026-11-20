@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_app/")({
     component: Home
 });
 
@@ -45,9 +45,10 @@ function Home() {
                             </a>{" "}
                             includes <code>oidcSpa()</code> from <code>oidc-spa/vite-plugin</code>. The
                             plugin wires up browser initialization, the server entry, and runtime
-                            configuration. The authenticated layout and its children use client
-                            rendering, while the root shell, header, and public pages can be
-                            server-rendered.
+                            configuration. The root route contains only the document frame. The pathless
+                            app layout holds the header and page outlet, so the generic SPA shell
+                            contains no app UI. Public pages can still be prerendered with their header
+                            and content; protected pages use client rendering.
                         </p>
                     </li>
                     <li>
@@ -67,7 +68,7 @@ function Home() {
                             middleware used throughout the app. The{" "}
                             <a href={`${sourceUrl}/src/components/AppHeader.tsx`}>header</a> uses these
                             helpers for login, logout, and the avatar; the{" "}
-                            <a href={`${sourceUrl}/src/routes/_authenticated/account.tsx`}>
+                            <a href={`${sourceUrl}/src/routes/_app/_authenticated/account.tsx`}>
                                 account page
                             </a>{" "}
                             displays the profile and offers Keycloak account actions when available.
@@ -103,7 +104,7 @@ function Home() {
                         <h3>Protect pages and backend requests</h3>
                         <p>
                             The{" "}
-                            <a href={`${sourceUrl}/src/routes/_authenticated/route.tsx`}>
+                            <a href={`${sourceUrl}/src/routes/_app/_authenticated/route.tsx`}>
                                 <code>_authenticated</code> layout
                             </a>{" "}
                             declares <code>beforeLoad: enforceLogin</code> once for all account and todo
@@ -113,14 +114,14 @@ function Home() {
                         </p>
                         <p>
                             The home and inactivity logout pages remain outside this layout and are
-                            public. The header stays in the root shell for server rendering and handles
-                            both logged-in and logged-out visitors. Protected components can use{" "}
+                            public. The shared app layout contains the header, which handles both
+                            logged-in and logged-out visitors. Protected components can use{" "}
                             <code>useOidc({`{ assert: "user logged in" }`})</code> to access the user.
                         </p>
                         <p>
                             Backend requests are protected separately. In the{" "}
                             <a
-                                href={`${sourceUrl}/src/routes/_authenticated/todo-list-server-function.tsx`}
+                                href={`${sourceUrl}/src/routes/_app/_authenticated/todo-list-server-function.tsx`}
                             >
                                 server function version
                             </a>
@@ -137,7 +138,7 @@ function Home() {
                         <p>
                             The <a href={`${sourceUrl}/src/routes/api/todos.ts`}>API route version</a>{" "}
                             uses <code>oidcRequestMiddleware</code> on <code>/api/todos</code>. Its{" "}
-                            <a href={`${sourceUrl}/src/routes/_authenticated/todo-list-api.tsx`}>
+                            <a href={`${sourceUrl}/src/routes/_app/_authenticated/todo-list-api.tsx`}>
                                 client page
                             </a>{" "}
                             uses <code>fetchWithAuth()</code> from <code>src/oidc.ts</code> to attach the
@@ -149,7 +150,7 @@ function Home() {
                         <h3>Authorize admin operations on the server</h3>
                         <p>
                             The{" "}
-                            <a href={`${sourceUrl}/src/routes/_authenticated/todo-list-admin.tsx`}>
+                            <a href={`${sourceUrl}/src/routes/_app/_authenticated/todo-list-admin.tsx`}>
                                 admin page
                             </a>{" "}
                             lists todos grouped by user ID and lets admins delete items. Both server
@@ -170,7 +171,7 @@ function Home() {
                     <li>
                         <h3>Handle inactivity logout</h3>
                         <p>
-                            The authenticated layout mounts{" "}
+                            The shared app layout mounts{" "}
                             <a href={`${sourceUrl}/src/components/AutoLogoutWarningOverlay.tsx`}>
                                 <code>AutoLogoutWarningOverlay</code>
                             </a>{" "}
@@ -181,7 +182,7 @@ function Home() {
                         </p>
                         <p>
                             The{" "}
-                            <a href={`${sourceUrl}/src/routes/inactivity-logout.tsx`}>
+                            <a href={`${sourceUrl}/src/routes/_app/inactivity-logout.tsx`}>
                                 inactivity logout page
                             </a>{" "}
                             stays visible while the user is logged out. Its “Resume to where I was” link
