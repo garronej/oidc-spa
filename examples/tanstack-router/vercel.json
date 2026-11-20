@@ -3,6 +3,11 @@
     "framework": "vite",
     "buildCommand": "npm run typecheck && npm run build:client",
     "outputDirectory": "dist/client",
+    "functions": {
+        "api/index-vercel.ts": {
+            "includeFiles": ".env"
+        }
+    },
     "headers": [
         {
             "source": "/assets/:path*",

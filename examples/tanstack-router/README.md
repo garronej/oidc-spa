@@ -25,7 +25,8 @@ admin without an identity provider.
 
 Vite embeds `VITE_*` settings into the frontend. Restart development after changing
 them; rebuild for production. `server/oidc.ts` reads its settings from `process.env`.
-Local development and the Node production server load `.env`. Introspection secrets
+Local development, the Node production server, and the Vercel function load `.env`.
+Existing environment variables take precedence over the file. Introspection secrets
 and KV credentials have no `VITE_` prefix and stay on the server.
 
 ## Pages and integration
@@ -112,9 +113,10 @@ the production dependencies from `package.json`, plus its environment variables.
 ## Deploy on Vercel
 
 1. Set the project root to `examples/tanstack-router`.
-2. Configure the provider variables in Vercel before building. Register the deployed
-   origin and redirect URL with your provider. Public settings are embedded at build
-   time, so the frontend and backend must use matching provider settings.
+2. The committed `.env` supplies the demo provider defaults. Override provider
+   variables in Vercel before building when needed. Register the deployed origin
+   and redirect URL with your provider. Public settings are embedded at build time,
+   so the frontend and backend must use matching provider settings.
 3. Set `KV_REST_API_URL` and `KV_REST_API_TOKEN` for persistent todos; the deployed
    API cannot use local filesystem storage.
 4. Deploy using the included `vercel.json`. Static files come from `dist/client`,
@@ -135,6 +137,11 @@ Vercel uses two deployment conventions here:
 Only the Vercel function entry lives under `api/`: Vercel treats supported files in
 that directory as function entries. The shared application, authentication, tRPC,
 storage, and regular Node entry stay under `server/`.
+
+Vite loads `.env` during the frontend build. The function explicitly loads the same
+file at runtime, using its own module location to resolve the path. The `functions`
+configuration includes `.env` in the function package; values configured in Vercel
+take precedence. The file is packaged with the backend, outside the static output.
 
 The first rewrite dispatches `/api/*` to that function. The Express app receives
 the original request path (for example `/api/todos`) and handles all API methods,
