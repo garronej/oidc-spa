@@ -3,11 +3,13 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "dev": "concurrently --kill-others \"ng serve --host app.localhost --port 3000\" \"tsx watch server/index.ts --api-only\"",
-    "start": "node dist/angular-oidc-spa/server/index.mjs",
-    "build": "ng build && tsc --project tsconfig.server.json && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/angular-oidc-spa/server/index.mjs",
+    "dev": "concurrently --kill-others \"ng serve --host app.localhost --port 3000\" \"tsx watch server/index-node.ts --api-only\"",
     "typecheck": "ngc --noEmit --project tsconfig.app.json && tsc --project tsconfig.server.json",
-    "format:check": "prettier --check src server/*.ts *.json *.cjs README.md"
+    "build:client": "ng build",
+    "build:server": "tsc --project tsconfig.server.json && esbuild server/index-node.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/index.mjs",
+    "build": "npm run build:client && npm run build:server",
+    "start": "node dist/server/index.mjs",
+    "format:check": "prettier --check src server api *.json *.cjs README.md"
   },
   "private": true,
   "type": "module",
@@ -21,7 +23,7 @@
     "@upstash/redis": "1.39.0",
     "dotenv": "18.0.9",
     "express": "5.3.0",
-    "oidc-spa": "file:../../dist",
+    "oidc-spa": "next",
     "rxjs": "7.8.2",
     "tslib": "2.8.1",
     "zod": "4.6.7"

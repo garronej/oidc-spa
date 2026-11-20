@@ -1,7 +1,7 @@
 import express, { type ErrorRequestHandler } from 'express';
 import { z } from 'zod';
-import { getUser, HttpError } from './oidc';
-import { getTodosStore, type TodoItem } from './data/todos';
+import { getUser, HttpError } from './oidc.js';
+import { getTodosStore, type TodoItem } from './data/todos/index.js';
 
 export function createApiRouter() {
   const api = express.Router();
