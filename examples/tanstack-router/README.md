@@ -80,6 +80,7 @@ yarn start
 ```
 
 The build produces static files in `dist/client` and a Node server in `dist/server`.
+`build:client` builds the SPA; `build:server` bundles `server/index-node.ts`.
 Express serves both the SPA, including deep links, and the APIs on port 3000. `PORT`
 overrides the production port; `API_PORT` overrides the development API port. Update
 the Vite proxy if you change `API_PORT`.
@@ -117,18 +118,23 @@ the production dependencies from `package.json`, plus its environment variables.
 3. Set `KV_REST_API_URL` and `KV_REST_API_TOKEN` for persistent todos; the deployed
    API cannot use local filesystem storage.
 4. Deploy using the included `vercel.json`. Static files come from `dist/client`,
-   `/api/*` requests go to the Express app exported by `api/index.ts`, and other
+   `/api/*` requests go to the handler exported by `api/index-vercel.ts`, and other
    paths fall back to `index.html` for client routing.
 
 Vercel uses two deployment conventions here:
 
 -   `outputDirectory: "dist/client"` publishes that directory as static files on the
-    CDN. `framework: "vite"` selects Vite build defaults; `buildCommand` explicitly
-    runs this project's build script.
--   The source file `api/index.ts` is automatically compiled and packaged as a Node
-    function at `/api`. It exports the same Express app as the local server, without
-    calling `app.listen()`. Vercel invokes that app for API requests; it does not run
+    CDN. `framework: "vite"` selects Vite build defaults; `buildCommand` runs the
+    typecheck and client build. Vercel builds the function separately.
+-   The source file `api/index-vercel.ts` is automatically compiled and packaged as a
+    Node function at `/api/index-vercel`. Its default handler forwards requests to
+    the shared Express app with `app(req, res)`, without calling `app.listen()`.
+    Vercel invokes that handler for API requests; it does not run
     `npm start` or use `dist/server/index.mjs`.
+
+Only the Vercel function entry lives under `api/`: Vercel treats supported files in
+that directory as function entries. The shared application, authentication, tRPC,
+storage, and regular Node entry stay under `server/`.
 
 The first rewrite dispatches `/api/*` to that function. The Express app receives
 the original request path (for example `/api/todos`) and handles all API methods,
