@@ -1,10 +1,24 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "framework": "vite",
-    "buildCommand": "yarn build",
+    "buildCommand": "npm run build",
     "outputDirectory": "dist/client",
+    "headers": [
+        {
+            "source": "/assets/:path*",
+            "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+        },
+        {
+            "source": "/api/:path*",
+            "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+            "source": "/((?!api(?:/|$)|assets(?:/|$)).*)",
+            "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        }
+    ],
     "rewrites": [
         { "source": "/api/:path*", "destination": "/api" },
-        { "source": "/:path*", "destination": "/index.html" }
+        { "source": "/((?!api(?:/|$)|assets(?:/|$)).*)", "destination": "/index.html" }
     ]
 }

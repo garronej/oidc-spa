@@ -1,8 +1,8 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
 import type { Request } from "express";
-import { HttpError, getUser as getUser_generic } from "./oidc";
-import { getTodosStore, type TodoItem } from "./data/todos";
+import { HttpError, getUser as getUser_generic } from "./oidc.js";
+import { getTodosStore, type TodoItem } from "./data/todos/index.js";
 
 const t = initTRPC.context<{ req: Request }>().create();
 

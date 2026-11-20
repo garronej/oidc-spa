@@ -1,4 +1,4 @@
-import type { TodosStore } from "./port";
+import type { TodosStore } from "./port.js";
 
 export function createNodeFsTodoStore(params: { dirPath: string }): TodosStore {
     const { dirPath } = params;

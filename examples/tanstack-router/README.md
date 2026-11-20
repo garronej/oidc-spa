@@ -84,6 +84,30 @@ Express serves both the SPA, including deep links, and the APIs on port 3000. `P
 overrides the production port; `API_PORT` overrides the development API port. Update
 the Vite proxy if you change `API_PORT`.
 
+The production routing and browser cache policy are:
+
+| Request                               | Response                       | Cache-Control                         |
+| ------------------------------------- | ------------------------------ | ------------------------------------- |
+| `/api` and `/api/*`, all HTTP methods | Express REST or tRPC handler   | `no-store`                            |
+| `/assets/*`, GET/HEAD                 | File from `dist/client/assets` | `public, max-age=31536000, immutable` |
+| Other existing static files, GET/HEAD | File from `dist/client`        | `no-cache`                            |
+| Other page paths, GET/HEAD            | `dist/client/index.html`       | `no-cache`                            |
+
+Vite gives generated assets content hashes in their filenames, so they can be cached
+for a year: a changed file gets a new URL. `no-cache` allows storage but requires
+revalidation before reuse. Missing files under `/assets/*` return 404 instead of
+the SPA HTML. `/assets` is the namespace chosen for build assets; it can be changed
+with Vite's `build.assetsDir` if it conflicts with your page URLs (update the server
+and hosting rules too).
+
+On a VM or in a container, run `npm start` as a persistent Node process and put a
+reverse proxy in front of its `PORT`. You can proxy everything to Express, which
+implements the table above, or serve `dist/client` through your web server/CDN and
+proxy only `/api` and `/api/*` to Node. Proxy API requests internally, preserving
+their method, body, original path, host and protocol; do not send a browser redirect.
+The server build leaves npm dependencies external, so the Node deployment also needs
+the production dependencies from `package.json`, plus its environment variables.
+
 ## Deploy on Vercel
 
 1. Set the project root to `examples/tanstack-router`.
@@ -96,5 +120,29 @@ the Vite proxy if you change `API_PORT`.
    `/api/*` requests go to the Express app exported by `api/index.ts`, and other
    paths fall back to `index.html` for client routing.
 
-The Vercel entry exports the same Express app as the local server. It does not
-start a separate listening process.
+Vercel uses two deployment conventions here:
+
+-   `outputDirectory: "dist/client"` publishes that directory as static files on the
+    CDN. `framework: "vite"` selects Vite build defaults; `buildCommand` explicitly
+    runs this project's build script.
+-   The source file `api/index.ts` is automatically compiled and packaged as a Node
+    function at `/api`. It exports the same Express app as the local server, without
+    calling `app.listen()`. Vercel invokes that app for API requests; it does not run
+    `npm start` or use `dist/server/index.mjs`.
+
+The first rewrite dispatches `/api/*` to that function. The Express app receives
+the original request path (for example `/api/todos`) and handles all API methods,
+including POST. Existing static files take precedence over rewrites. The second
+rewrite serves `index.html` for page URLs, excluding the API and asset namespaces.
+The `headers` rules implement the cache policy in the table above. Static files
+can still be cached in Vercel's CDN even when browsers must revalidate the HTML.
+
+The function is compiled separately from the esbuild server bundle. Its relative
+server imports therefore include `.js` extensions and explicit `/index.js` paths,
+as required by Node's ESM loader. TypeScript resolves these to the corresponding
+`.ts` source files during compilation. Extensionless imports can work in Vite,
+tsx and esbuild while failing in the deployed function with `ERR_MODULE_NOT_FOUND`.
+
+See Vercel's [Vite deployment guide](https://vercel.com/docs/frameworks/frontend/vite),
+[Node function conventions](https://vercel.com/docs/functions/runtimes/node-js), and
+[project configuration reference](https://vercel.com/docs/project-configuration/vercel-json).
