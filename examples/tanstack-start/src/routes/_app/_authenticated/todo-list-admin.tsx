@@ -36,7 +36,7 @@ const deleteTodo = createServerFn({ method: "POST" })
         });
     });
 
-export const Route = createFileRoute("/_authenticated/todo-list-admin")({
+export const Route = createFileRoute("/_app/_authenticated/todo-list-admin")({
     loader: () => getAllTodos(),
     component: TodoListAdmin,
     pendingComponent: () => <p>Loading todos...</p>,

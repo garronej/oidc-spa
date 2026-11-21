@@ -1,7 +1,7 @@
 import { ClientOnly, createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 
-export const Route = createFileRoute("/inactivity-logout")({
+export const Route = createFileRoute("/_app/inactivity-logout")({
     validateSearch: z.object({
         return_url: z.url().catch("/")
     }),
